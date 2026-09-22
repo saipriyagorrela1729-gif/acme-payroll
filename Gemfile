@@ -43,4 +43,6 @@ group :development, :test do
   gem "factory_bot_rails", "~> 6.5"
   gem "faker", "~> 3.0"
   gem "shoulda-matchers", "~> 6.0"
+  gem "capybara", "~> 3.40"
+  gem "selenium-webdriver"
 end
