@@ -1,9 +1,5 @@
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
-#
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+# Seeds 10,000 employees with salary history.
+# Usage: bin/rails db:seed   (or: bin/rails seed:benchmark)
+result = Seed::DatabasePopulator.new.call
+puts "Seeded #{result[:employee_count]} employees and #{result[:salary_record_count]} salary records " \
+     "(employees: #{result[:timings][:employees].round(2)}s, salary_records: #{result[:timings][:salary_records].round(2)}s)"
