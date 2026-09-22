@@ -1,0 +1,4 @@
+  [1m[35mSQL (0.4ms)[0m  [1m[35mSET search_path TO public /*application='AcmePayroll'*/[0m
+  [1m[35m (214.1ms)[0m  [1m[35mCREATE DATABASE "acme_payroll_development" ENCODING = 'unicode' /*application='AcmePayroll'*/[0m
+  [1m[35mSQL (0.2ms)[0m  [1m[35mSET search_path TO public /*application='AcmePayroll'*/[0m
+  [1m[35m (67.4ms)[0m  [1m[35mCREATE DATABASE "acme_payroll_test" ENCODING = 'unicode' /*application='AcmePayroll'*/[0m
