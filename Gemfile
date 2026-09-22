@@ -23,6 +23,10 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
 
+# Seeding runs at deploy time (RAILS_ENV=production), so Faker must be available
+# in every environment, not just development/test.
+gem "faker", "~> 3.0"
+
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 # gem "rack-cors"
 
@@ -41,7 +45,6 @@ group :development, :test do
 
   gem "rspec-rails", "~> 8.0"
   gem "factory_bot_rails", "~> 6.5"
-  gem "faker", "~> 3.0"
   gem "shoulda-matchers", "~> 6.0"
   gem "capybara", "~> 3.40"
   gem "selenium-webdriver"
