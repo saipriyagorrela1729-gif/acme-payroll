@@ -147,3 +147,22 @@ rows, SQL aggregation is fast enough that caching is unnecessary.
 **Why:** No CORS, no separate static host, one health check, one place to debug.
 
 **Trade-off:** No CDN-fronted static assets; irrelevant at this scale.
+
+---
+
+## ADR-011 — Pin `json` gem below 3.0 (environment incompatibility)
+
+**Context:** The very first `POST /api/v1/employees` request spec failed with
+`ArgumentError: wrong number of arguments (given 2, expected 1)`.
+
+**Cause:** Bundler resolved **json 3.0.2**, whose `JSON.parse` was rewritten to accept only
+the source string. Rails' `ActiveSupport::JSON.decode` calls `::JSON.parse(json, options)`,
+so **every JSON request body in the app would have failed to parse** — the API would have
+been completely broken.
+
+**Decision:** Pin `gem "json", "~> 2.9"`.
+
+**Why:** One line fixes the whole app; the failing spec caught it on the first request test
+instead of in production. This is TDD earning its keep at the environment level.
+
+**Trade-off:** None meaningful for this app. Revisit when Rails itself supports json 3.

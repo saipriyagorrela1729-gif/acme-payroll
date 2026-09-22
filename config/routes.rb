@@ -6,6 +6,12 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       get "health", to: "health#show"
+      get "departments", to: "meta#departments"
+      get "countries", to: "meta#countries"
+
+      resources :employees do
+        resources :salary_records, only: [ :create ]
+      end
     end
   end
 end

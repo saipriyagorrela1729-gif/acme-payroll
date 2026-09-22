@@ -14,7 +14,9 @@ class Employee < ApplicationRecord
     where("name ILIKE :q OR email ILIKE :q", q: "%#{term.to_s.strip}%")
   end
 
+  # Works on the in-memory collection when salary_records are preloaded
+  # (via includes) so list endpoints avoid N+1 queries.
   def current_salary
-    salary_records.order(effective_date: :desc, id: :desc).first
+    salary_records.max_by { |record| [ record.effective_date, record.id ] }
   end
 end
