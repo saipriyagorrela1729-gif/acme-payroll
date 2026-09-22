@@ -43,9 +43,12 @@ After implementing, run: bin/rspec <files> and show me the output.
 - Review: I overrode the model's suggestion to add a `departments` table and an auth stub —
   recorded as ADR-002 and ADR-007 with my reasoning.
 
-### Phase 2 — Data model (to be recorded here as I go)
-- Each migration/model/factory is generated against the schema in `architecture.md`, then
-  reviewed against the SQL and the `db/schema.rb` diff.
+### Phase 2 — Data model
+- Prompt: *"Write RSpec model specs for Employee and SalaryRecord per docs/architecture.md and
+  docs/decisions.md. Then implement the models and migrations to make them pass."*
+- Review: The spec I wrote first caught a real defect — `SalaryRecord#currency` was missing
+  `presence: true`, so an empty string was accepted as long as the format regex "passed".
+  Fixed in the model. This is the TDD loop working: **specs first, they drove the fix**.
 
 ## Review checklist applied to every AI response
 
