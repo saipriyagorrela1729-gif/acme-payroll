@@ -3,6 +3,17 @@ class SalaryRecord < ApplicationRecord
   HOURS_PER_YEAR = 2080
   MONTHS_PER_YEAR = 12
 
+  # SQL fragment that normalizes any salary to an annual figure. Single source
+  # of truth for aggregation (payroll, medians, distributions) so every report
+  # uses the same convention. Convention: 40 h/week x 52 weeks = 2080 hours.
+  ANNUALIZED_SQL = <<~SQL.squish
+    CASE salary_records.frequency
+      WHEN 'annual'  THEN salary_records.amount
+      WHEN 'monthly' THEN salary_records.amount * #{MONTHS_PER_YEAR}
+      WHEN 'hourly'  THEN salary_records.amount * #{HOURS_PER_YEAR}
+    END
+  SQL
+
   belongs_to :employee
 
   validates :amount, presence: true, numericality: { greater_than: 0 }
@@ -12,8 +23,16 @@ class SalaryRecord < ApplicationRecord
 
   scope :for_year, ->(year) { where("effective_date <= ?", Date.new(year, 12, 31)) }
 
+  # The latest record per employee (current salary). Implemented as a subquery
+  # over ids so aggregations (group/pluck) preserve "one record per employee".
+  scope :current, -> do
+    latest_ids = SalaryRecord
+      .select("DISTINCT ON (salary_records.employee_id) salary_records.id")
+      .order("salary_records.employee_id, salary_records.effective_date DESC, salary_records.id DESC")
+    where(id: latest_ids)
+  end
+
   # Normalizes any salary to an annual figure for cross-frequency comparison.
-  # Convention: 40 h/week x 52 weeks = 2080 hours; documented in docs/decisions.md.
   def annualized_amount
     case frequency
     when "annual" then amount.to_d

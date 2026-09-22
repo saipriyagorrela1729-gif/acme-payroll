@@ -8,6 +8,7 @@ Rails.application.routes.draw do
       get "health", to: "health#show"
       get "departments", to: "meta#departments"
       get "countries", to: "meta#countries"
+      get "summary", to: "summary#show"
 
       resources :employees do
         resources :salary_records, only: [ :create ]

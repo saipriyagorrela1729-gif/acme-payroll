@@ -27,11 +27,24 @@ salary per employee" query without a sort pass.
 
 ## 3. Dashboard aggregation
 
-- All summary metrics computed in **SQL** (`GROUP BY`, `percentile_cont` for medians),
-  not by loading rows into Ruby. 10k rows aggregating in PostgreSQL is single-digit ms.
+- All summary metrics are computed in **SQL** — set aggregation (`GROUP BY`,
+  `PERCENTILE_CONT` for medians) plus window functions (`DISTINCT ON`, `ROW_NUMBER`,
+  `WIDTH_BUCKET`) for "current salary per employee", top earners, and the histogram.
+  **No employee rows are loaded into Ruby memory.**
 - **Median over mean**: mean is skewed by a few top earners; median is the honest
   "typical salary". We expose both.
 - Reports always read live data — no cache invalidation bugs possible.
+- Annualized amounts are derived in SQL via a single shared `CASE` expression
+  (`SalaryRecord::ANNUALIZED_SQL`), so every metric uses the same convention.
+
+**Measured on the 10k dataset (PostgreSQL 16):**
+
+| Metric | Time |
+|---|---|
+| Summary endpoint (all six stat groups) | **~176ms** (target < 200ms) ✓ |
+
+Breakdown: headcount 12ms · payroll 24ms · by-department 23ms · by-country 20ms ·
+distribution 66ms · top-earners 31ms.
 
 ## 4. Seeding 10,000 employees
 
