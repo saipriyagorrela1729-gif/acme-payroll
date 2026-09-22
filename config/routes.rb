@@ -10,7 +10,8 @@ Rails.application.routes.draw do
       get "countries", to: "meta#countries"
       get "summary", to: "summary#show"
 
-      resources :employees do
+resources :employees do
+        get :export, on: :collection
         resources :salary_records, only: [ :create ]
       end
     end

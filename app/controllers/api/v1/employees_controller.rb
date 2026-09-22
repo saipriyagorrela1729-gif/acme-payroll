@@ -1,3 +1,5 @@
+require "csv"
+
 module Api
   module V1
     class EmployeesController < ApplicationController
@@ -43,6 +45,26 @@ module Api
       def destroy
         @employee.destroy
         head :no_content
+      end
+
+      def export
+        employees = Employee.includes(:salary_records).order(:name)
+        csv = CSV.generate(headers: true) do |builder|
+          builder << %w[
+            name email job_title department country currency status hire_date
+            salary_amount salary_frequency salary_effective_date
+          ]
+          employees.find_each do |employee|
+            salary = employee.current_salary
+            builder << [
+              employee.name, employee.email, employee.job_title, employee.department,
+              employee.country, employee.currency, employee.status, employee.hire_date,
+              salary&.amount, salary&.frequency, salary&.effective_date
+            ]
+          end
+        end
+
+        send_data csv, type: "text/csv", filename: "acme_payroll_#{Date.current.iso8601}.csv"
       end
 
       private
