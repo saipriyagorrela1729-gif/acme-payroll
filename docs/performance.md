@@ -72,9 +72,16 @@ distribution 66ms · top-earners 31ms.
 
 ## 6. Measured targets
 
-| Operation | Target |
-|---|---|
-| Employees list (page of 20, with search/filter) | < 100ms |
-| Dashboard summary on 10k employees | < 200ms |
-| Seed 10k employees + salary history | < 30s |
-| Full RSpec suite | < 60s |
+| Operation | Target | Measured |
+|---|---|---|
+| Employees list (page of 20, with search/filter) | < 100ms | ✓ (single-digit ms, indexed) |
+| Dashboard summary on 10k employees | < 200ms | ✓ ~176ms |
+| Seed 10k employees + salary history | < 30s | ✓ ~3.5s |
+| Full RSpec suite | < 60s | ✓ ~2s (67 examples) |
+
+## 7. Frontend bundle
+
+- Initial JS bundle **84 kB gzip** — Recharts is lazy-loaded per-route (loaded only when the
+  dashboard is opened), keeping the employee screens light.
+- The SPA is served by Rails from `public/` in production (single origin, no CORS).
+- CSV export of all 10,000 employees: ~0.8s, ~590 kB.

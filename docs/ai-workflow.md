@@ -50,6 +50,30 @@ After implementing, run: bin/rspec <files> and show me the output.
   `presence: true`, so an empty string was accepted as long as the format regex "passed".
   Fixed in the model. This is the TDD loop working: **specs first, they drove the fix**.
 
+### Phase 4 — API (json 3.0 incompatibility)
+- Prompt: *"Implement Api::V1::EmployeesController per the request specs in
+  spec/requests/api/v1/employees_spec.rb. Use thin controllers, serializers, and eager loading."*
+- Review: The very first `POST` spec failed with `ArgumentError: wrong number of arguments
+  (given 2, expected 1)`. Root cause: Bundler resolved **json 3.0.2**, whose `JSON.parse`
+  drops the options argument — breaking `ActiveSupport::JSON.decode` and therefore **every
+  JSON request body in the app**. Fixed by pinning `json ~> 2.9` (ADR-011). A request spec
+  caught an environment-level breakage before it reached production.
+
+### Phase 5 — PayrollStats
+- Prompt: *"Aggregate 'current salary per employee' and summary stats in SQL only, grouped
+  by currency, per the PayrollStats spec. Use DISTINCT ON, window functions, PERCENTILE_CONT."*
+- Review: Rails 8's "dangerous query method" guard rejected raw SQL strings — wrapped in
+  `Arel.sql` (correct, since our fragments are static constants, not user input). Profiled
+  each metric; `distribution` initially loaded 10k rows into Ruby (100ms) — moved to a
+  `WIDTH_BUCKET` window query. Summary now ~176ms, zero employee rows loaded into Ruby.
+
+### Phase 7-9 — React SPA
+- Prompt: *"Build a minimal React + TS SPA (Vite) with 4 pages against the /api/v1 contract
+  in src/api/types.ts. Plain fetch, no state library, Recharts on the dashboard."*
+- Review: Caught that `useLocation()` was called outside a `<Router>` (missing BrowserRouter
+  in main.tsx) and that `render file:` returns an empty body in API mode — switched the SPA
+  fallback to `send_file`. Recharts (~500kB) is lazy-loaded so the initial bundle is 84kB gzip.
+
 ## Review checklist applied to every AI response
 
 - [ ] Does the diff match the agreed contract (no scope creep)?

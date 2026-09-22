@@ -1,0 +1,26 @@
+# Render blueprint — see README "Deployment (Render)".
+# Requires: RAILS_MASTER_KEY env var (from config/master.key) set on the service.
+services:
+  - type: web
+    name: acme-payroll
+    runtime: ruby
+    plan: free
+    buildCommand: |
+      cd frontend && npm ci && npm run build && cd ..
+      bundle install
+    startCommand: bin/rails server
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: RAILS_ENV
+        value: production
+    disk:
+      name: tmp
+      mountPath: /opt/render/project/src/tmp
+
+databases:
+  - name: acme-payroll-db
+    plan: free
+    databaseName: acme_payroll_production
+    user: acme_payroll
