@@ -1,7 +1,8 @@
 # Render blueprint — see README "Deployment (Render)".
 # SQLite is a file, so a persistent disk keeps the database across deploys.
-# NOTE: Render persistent disks require a paid instance type. On the free tier the
-# disk is not available and the database resets on deploy — just re-run `bin/rails db:seed`.
+# NOTE: Render persistent disks require a paid instance type (plan: starter, ~$7/mo).
+# On the free tier there is no disk and the database resets on deploy/restart —
+# you would re-run `bin/rails db:seed` after each deploy.
 services:
   - type: web
     name: acme-payroll
@@ -10,7 +11,8 @@ services:
     buildCommand: |
       cd frontend && npm ci && npm run build && cd ..
       bundle install
-    startCommand: bin/rails server
+    # db:prepare runs pending migrations at boot, on the mounted disk.
+    startCommand: bin/rails db:prepare && bin/rails server
     healthCheckPath: /api/v1/health
     envVars:
       - key: SECRET_KEY_BASE
