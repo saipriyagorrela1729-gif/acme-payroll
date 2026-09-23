@@ -68,25 +68,24 @@ GET   /api/v1/summary
 GET   /api/v1/health
 ```
 
-## Deployment (Render)
+## Deployment
 
-The repo includes a `render.yaml` blueprint. Steps:
+SQLite is a file, so production needs a host with a **persistent disk**. The recommended
+free option is an **Oracle Cloud Always Free VM** running Docker Compose (Rails + Caddy +
+SQLite volume). Full step-by-step runbook: **[`docs/deploy-oracle.md`](docs/deploy-oracle.md)**.
 
-1. Push this repo to GitHub (commits already tell the evolution story).
-2. In Render: **New → Blueprint** and point at the repo (or create the resources manually).
-3. Render generates `SECRET_KEY_BASE` automatically (declared in `render.yaml`). No
-   credentials file is needed — this API app uses no cookies or sessions.
-4. After first deploy, seed once from the Render shell:
-   ```bash
-   bin/rails db:seed
-   ```
-5. Open the service URL. Health check: `/api/v1/health`.
+```bash
+# on the VM, after cloning the repo
+cp .env.example .env          # set SECRET_KEY_BASE and DOMAIN
+docker compose up -d --build
+docker compose exec app bin/rails db:seed
+```
 
-**SQLite note:** the database is a file, so the blueprint mounts a persistent disk at
-`/var/data` and sets `DATABASE_PATH=/var/data/production.sqlite3`. Without a disk the
-database would be wiped on every deploy.
+A `render.yaml` blueprint is also included as an alternative, but Render persistent disks
+require a paid instance (~$7/mo); its free tier has an ephemeral filesystem, which wipes a
+SQLite database on every deploy.
 
 ## Demo
 
-Deployed at: _(add Render URL after deploy)_
+Deployed at: _(add the URL after deploy)_
 Demo video: _(add link — walk the dashboard, search/filter, open an employee, record a salary change, export CSV)_
