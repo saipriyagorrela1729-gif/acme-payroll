@@ -170,5 +170,8 @@ docker compose up -d --build  # first boot creates and seeds the SQLite DB autom
 
 ## Commit history
 
-Commits are incremental and tell the story of how the solution evolved — docs first, then
-scaffold, models (TDD), seed, API, analytics, CSV, the React SPA, tests, and deployment.
+The history is **incremental and TDD-ordered**: docs first, then scaffold, and for every
+backend feature the **failing spec is committed first (`… (red)`)** followed by the
+**implementation (`… (green)`)** — models, seed, `PayrollStats`, the employees/summary
+APIs, and CSV export. After that: the React SPA, the system test, and deployment. Read
+`git log --oneline` top-to-bottom to see the solution evolve.
