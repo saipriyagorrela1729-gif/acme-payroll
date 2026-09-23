@@ -1,26 +1,18 @@
 # Render blueprint — deploys the app as a Docker image built from ./Dockerfile.
 #
-# SQLite is a file, so persistence needs a disk (paid instance type).
-#   - plan: starter + disk  => SQLite persists across deploys/restarts (~$7/mo).
-#   - plan: free (no disk)   => ephemeral; the DB is wiped on restart, but the
-#                               container's `db:prepare` re-creates and re-seeds
-#                               it on the next boot, so the app self-heals.
+# Free plan: the filesystem is ephemeral, so the SQLite file does NOT persist
+# across restarts. The container's `db:prepare` re-creates and re-seeds it on
+# the next boot, so the app self-heals (with a slower first request).
 services:
   - type: web
     name: acme-payroll
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    plan: starter
+    plan: free
     healthCheckPath: /api/v1/health
     envVars:
       - key: SECRET_KEY_BASE
         generateValue: true
       - key: RAILS_ENV
         value: production
-      - key: DATABASE_PATH
-        value: /var/data/production.sqlite3
-    disk:
-      name: acme-payroll-data
-      mountPath: /var/data
-      sizeGB: 1

@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # --- Stage 1: build the React SPA into public/ ---
 FROM node:22-bookworm-slim AS frontend
 WORKDIR /app
