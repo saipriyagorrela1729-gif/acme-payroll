@@ -1,0 +1,22 @@
+# Build artifacts / dependencies
+frontend/node_modules
+public/assets
+public/index.html
+public/favicon.svg
+public/icons.svg
+
+# Local databases (the image must not ship data)
+storage/*.sqlite3
+storage/*.sqlite3-*
+
+# VCS, logs, temp (keep the tmp/ dir itself)
+.git
+log/*
+tmp/cache
+tmp/pids
+tmp/storage
+
+# Local env / editor
+.env
+.env.*
+.byebug_history
