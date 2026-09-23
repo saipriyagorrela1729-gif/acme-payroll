@@ -1,9 +1,9 @@
 # ACME Payroll
 
-Web-based salary management for ACME's HR team — 10,000 employees across multiple
-countries. Replace the spreadsheets; answer "how does the org pay people".
+Web-based salary management for ACME's HR team — 10,000 employees across India and
+the US. Replace the spreadsheets; answer "how does the org pay people".
 
-Rails 8 + PostgreSQL backend, React + TypeScript SPA, RSpec-tested. Built as an
+Rails 8 + SQLite backend, React + TypeScript SPA, RSpec-tested. Built as an
 Incubyte technical assessment.
 
 ## The thinking behind it lives in `docs/`
@@ -18,7 +18,7 @@ Incubyte technical assessment.
 
 ## Tech stack
 
-- **Backend:** Ruby on Rails 8 (API + serves the SPA), PostgreSQL 16
+- **Backend:** Ruby on Rails 8 (API + serves the SPA), SQLite
 - **Frontend:** React + TypeScript + Vite, Recharts (dashboard), react-router
 - **Testing:** RSpec + FactoryBot + shoulda-matchers (+ Capybara system spec)
 - **Deploy:** Render — one unit: Rails serves the compiled SPA from `public/`
@@ -26,7 +26,7 @@ Incubyte technical assessment.
 ## Local setup
 
 ```bash
-# 1. Backend (Ruby 3.4, Postgres 16)
+# 1. Backend (Ruby 3.4, SQLite — no database server needed)
 bundle install
 bin/rails db:create db:migrate
 
@@ -73,13 +73,17 @@ GET   /api/v1/health
 The repo includes a `render.yaml` blueprint. Steps:
 
 1. Push this repo to GitHub (commits already tell the evolution story).
-2. In Render: **New → Blueprint** and point at the repo (or create the two resources manually).
+2. In Render: **New → Blueprint** and point at the repo (or create the resources manually).
 3. Set env var `RAILS_MASTER_KEY` to the contents of `config/master.key`.
 4. After first deploy, seed once from the Render shell:
    ```bash
    bin/rails db:seed
    ```
 5. Open the service URL. Health check: `/api/v1/health`.
+
+**SQLite note:** the database is a file, so the blueprint mounts a persistent disk at
+`/var/data` and sets `DATABASE_PATH=/var/data/production.sqlite3`. Without a disk the
+database would be wiped on every deploy.
 
 ## Demo
 

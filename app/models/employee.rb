@@ -11,7 +11,8 @@ class Employee < ApplicationRecord
 
   scope :active, -> { where(status: "active") }
   scope :search, ->(term) do
-    where("name ILIKE :q OR email ILIKE :q", q: "%#{term.to_s.strip}%")
+    query = "%#{term.to_s.strip.downcase}%"
+    where("LOWER(name) LIKE :q OR LOWER(email) LIKE :q", q: query)
   end
 
   # Works on the in-memory collection when salary_records are preloaded

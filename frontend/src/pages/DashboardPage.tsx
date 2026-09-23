@@ -18,6 +18,8 @@ import { formatBand, formatCompact, formatMoney, formatNumber } from '../lib/for
 
 const PIE_COLORS = ['#6d28d9', '#f43f5e']
 const BAR_COLORS = ['#6d28d9', '#c084fc']
+// The org pays in two currencies; INR is the default view.
+const SUPPORTED_CURRENCIES = ['INR', 'USD']
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState<PayrollSummary | null>(null)
@@ -27,7 +29,8 @@ export default function DashboardPage() {
   useEffect(() => {
     api.summary().then((r) => {
       setSummary(r.summary)
-      setCurrency(Object.keys(r.summary.payroll)[0] ?? '')
+      const available = SUPPORTED_CURRENCIES.filter((c) => r.summary.payroll[c])
+      setCurrency(available[0] ?? '')
     }).catch((e: Error) => setError(e.message))
   }, [])
 
@@ -68,7 +71,9 @@ export default function DashboardPage() {
       <div className="page-header">
         <h1>How ACME pays people</h1>
         <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-          {(Object.keys(summary.payroll) ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
+          {SUPPORTED_CURRENCIES.filter((c) => summary.payroll[c]).map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
         </select>
       </div>
 

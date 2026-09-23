@@ -8,7 +8,7 @@ module Api
         if record.save
           render json: { salary_record: Api::V1::SalaryRecordSerializer.call(record) }, status: :created
         else
-          render json: { errors: record.errors.messages.transform_values(&:first) }, status: :unprocessable_entity
+          render json: { errors: record.errors.messages.transform_values(&:first) }, status: :unprocessable_content
         end
       end
 

@@ -103,7 +103,7 @@ module Api
       end
 
       def render_errors(record)
-        render json: { errors: record.errors.messages.transform_values(&:first) }, status: :unprocessable_entity
+        render json: { errors: record.errors.messages.transform_values(&:first) }, status: :unprocessable_content
       end
     end
   end

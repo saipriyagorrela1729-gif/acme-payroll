@@ -19,8 +19,9 @@ accountant; not an employee self-service user.
 - **Salary management**: record a salary per employee with amount, currency, frequency
   (annual/monthly/hourly), and effective date. Salary **history is retained** — every
   change is an effective-dated record; the current salary is the latest record.
-- **Multi-country support**: each employee has a country and currency; salaries are stored
-  in local currency and reported **per currency** (no currency conversion).
+- **Multi-country support**: employees are based in India or the US; each employee has a
+  country and currency (INR or USD); salaries are stored in the employee's local currency
+  and reported **per currency** (no currency conversion).
 - **Reporting — "how the org pays people"**:
   - Total headcount and total monthly/annual payroll (per currency)
   - Average and **median** salary by department and by country
@@ -50,7 +51,7 @@ These are the choices we made where the brief was ambiguous. Each is easy to cha
 |---|---|---|
 | "Answer questions about how the org pays people" | Aggregate **dashboard of statistics** (not natural-language Q&A) | Dashboard is deterministic, fast, and demos reliably; an LLM chat layer adds big scope for little value here |
 | Salary frequency | Store amount **+ frequency** per record; normalize to annual for comparison | Countries use different conventions; we keep ground truth and derive comparisons |
-| Multi-currency meaning | Store local currency; **report per currency** | No fake FX math |
+| Multi-currency meaning | Two currencies only (INR, USD); **report per currency** | The org standardized on these two; no fake FX math |
 | Salary history | Effective-dated `salary_records`; current = latest record | Tracking raises/tenure is barely more work and answers "how we pay" far better |
 | Gross vs net | **Base/gross salary** | Deductions are out of scope |
 | "10,000 employees" | Seed with 10k rows; UI paginates | Confirms performance approach without caching layers |

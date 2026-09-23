@@ -7,8 +7,8 @@ gem "rails", "~> 8.1.3", ">= 8.1.3.1"
 gem "json", "~> 2.9"
 # Ruby 3.4 ships csv as a bundled gem; needed for the CSV export.
 gem "csv"
-# Use postgresql as the database for Active Record
-gem "pg", "~> 1.1"
+# Use SQLite as the database for Active Record
+gem "sqlite3", ">= 2.1"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]

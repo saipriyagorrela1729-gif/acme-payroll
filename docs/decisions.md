@@ -54,7 +54,7 @@ product-correct model for salary management.
 
 ## ADR-004 — Store local currency; report per currency (no FX)
 
-**Context:** Employees across multiple countries with different currencies.
+**Context:** Employees in India and the US, paid in INR and USD respectively.
 
 **Decision:** Salaries store `amount` in the employee's local `currency`. Reporting groups
 by currency. Annualized amounts are computed for comparison **within** a currency only.
@@ -166,3 +166,23 @@ been completely broken.
 instead of in production. This is TDD earning its keep at the environment level.
 
 **Trade-off:** None meaningful for this app. Revisit when Rails itself supports json 3.
+---
+
+## ADR-012 — SQLite instead of PostgreSQL
+
+**Context:** The assessment allows "a relational database of your choice, like SQLite".
+The original build used PostgreSQL to exploit `DISTINCT ON`, `PERCENTILE_CONT`,
+`WIDTH_BUCKET`, and `ILIKE` for the analytics.
+
+**Decision:** Use **SQLite**. The Postgres-only SQL was ported to portable SQL
+(`ROW_NUMBER()` window functions for "latest salary per employee" and the median) and the
+histogram is bucketed in Ruby. Search uses `LOWER(...) LIKE`.
+
+**Why:** SQLite needs no database server — `bin/rails db:create` just works, and the whole
+app is a single file plus a process. For 10,000 rows the performance is comparable
+(~230ms for the full dashboard summary, vs ~176ms on Postgres).
+
+**Trade-off:** We lose Postgres-specific aggregate functions (median/histogram are now
+computed in Ruby), and production persistence requires a mounted disk on the host. In
+exchange, local setup and deployment are dramatically simpler. The SQL is written to be
+portable, so moving back to Postgres is a `database.yml` + Gemfile change.

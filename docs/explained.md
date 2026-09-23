@@ -9,7 +9,7 @@
 ## 1. What is this project?
 
 **In one sentence:** A web application for the HR team of a fictional company ("ACME") to
-manage the salaries of its **10,000 employees across 12 countries**, replacing a
+manage the salaries of its **10,000 employees across India and the US**, replacing a
 spreadsheet mess — and to answer questions like *"how does the org pay people?"*.
 
 **Where did it come from?** It was built as a take-home **technical assessment** for
@@ -34,12 +34,12 @@ explaining *why* we chose monolith-over-microservices, a string-over-a-table, et
 | Layer | Choice | Why |
 |---|---|---|
 | Backend framework | **Ruby on Rails 8** (API mode) | The role is a Rails backend developer; Rails is the strongest default for CRUD + reporting |
-| Database | **PostgreSQL 16** | Relational, and Postgres has features we use: `DISTINCT ON`, `PERCENTILE_CONT`, `WIDTH_BUCKET` |
+| Database | **SQLite** | Relational, zero setup — no database server to run (see ADR-012) |
 | Frontend | **React + TypeScript** (Vite) | The assessment asked for React; TypeScript keeps the frontend type-safe even though our strength is backend |
 | Charts | **Recharts** | Simple React chart library |
 | Testing | **RSpec + FactoryBot + shoulda-matchers + Capybara** | The Rails testing standard |
 | Data seeding | **Faker** (deterministic) | Realistic fake names/job titles |
-| Deployment | **Render** | One-click Rails + Postgres hosting |
+| Deployment | **Render** | One-click Rails hosting; SQLite file on a mounted disk |
 
 **Why Rails `--api` mode?** API mode strips out views, helpers, and Turbo. Our React app
 does all the rendering; Rails only returns JSON. But API mode still serves static files —
@@ -54,7 +54,7 @@ origin, no CORS).
 # backend
 bundle install
 bin/rails db:create db:migrate
-bin/rails db:seed                 # ~3.5s, creates 10,000 employees
+bin/rails db:seed                 # ~7s, creates 10,000 employees
 bin/rails server                  # http://localhost:3000
 
 # tests
@@ -78,7 +78,7 @@ acme_payroll/
 ├── README.md               quick start
 ├── config/
 │   ├── routes.rb           THE router — every URL -> controller mapping
-│   └── database.yml        Postgres connection config
+│   └── database.yml        SQLite connection config
 ├── db/
 │   ├── migrate/            schema migrations (how the DB is built)
 │   ├── schema.rb           current DB schema (generated)
@@ -190,7 +190,7 @@ salary?" is "which currency do you mean?"
 
 ---
 
-## 8. The seed — how 10,000 employees appear in 3.5 seconds
+## 8. The seed — how 10,000 employees appear in ~7 seconds
 
 `app/services/seed/database_populator.rb`. Open it — it's ~150 lines and worth reading.
 
@@ -202,7 +202,7 @@ salary?" is "which currency do you mean?"
    lakhs, Japan gets `JPY` in millions, US gets `USD` in tens of thousands.
 3. **Salary history** — each employee gets 1–3 records; the latest record is the current
    salary and earlier ones are ~65%→85%→100% of it. History always grows.
-4. **Fast** — uses `insert_all` (Postgres bulk insert) in batches of 1,000, not 10,000
+4. **Fast** — uses `insert_all` (bulk insert) in batches of 1,000, not 10,000
    individual `create!` calls. Measured: **1.2s for employees + 2.5s for salary records**.
 5. **A safety guard** — it refuses to run if `employees` already has rows. (We discovered
    Rails' `insert_all` *silently skips* rows that violate a unique constraint instead of
@@ -266,36 +266,43 @@ taken" } }`. Missing records → 404. These are what the React form turns into r
 ## 10. The dashboard — "how the org pays people" (`PayrollStats`)
 
 `app/services/payroll_stats.rb` is the product's brain. It returns six stat groups,
-computed in SQL over the **current salary of every employee**:
+computed over the **current salary of every employee**:
 
-| Stat | What it answers | SQL trick |
+| Stat | What it answers | How it's computed |
 |---|---|---|
 | `headcount` | How many people, active vs terminated | 3 indexed `COUNT`s |
-| `payroll` | Total annual + monthly pay, per currency | `SUM(annualized)` GROUP BY currency |
-| `by_department` | Avg & median salary per dept (per currency) | `AVG` + `PERCENTILE_CONT(0.5)` |
+| `payroll` | Total annual + monthly pay, per currency | `SUM(annualized)` grouped by currency |
+| `by_department` | Avg & median salary per dept (per currency) | average + median in Ruby |
 | `by_country` | Avg & median salary per country | same |
-| `distribution` | How salaries are spread (histogram) | `WIDTH_BUCKET` window function |
-| `top_earners` | Top 10 highest-paid, per currency | `ROW_NUMBER() OVER (PARTITION BY currency)` |
+| `distribution` | How salaries are spread (histogram) | 10 equal bands bucketed in Ruby |
+| `top_earners` | Top 10 highest-paid, per currency | sort per currency, take 10 |
 
 Three things to be able to say out loud:
 
 1. **"We report the median, not just the mean."** Mean is skewed by a few top earners;
    median is the honest "typical salary". We show both.
-2. **"Everything is computed in SQL."** No employee rows are ever pulled into Ruby memory.
-   That's why 10k rows aggregate in **~176ms**.
+2. **"We fetch the current salaries once and compute every stat from that."** The only
+   query is the "latest salary per employee" window query; everything else is arithmetic
+   over that result set. That's why 10k rows aggregate in **~52ms of service time**.
 3. **"Everything is live."** No precomputed/cached totals to go stale. What the dashboard
    shows is exactly what's in the database — which is what the tests assert.
 
-### The clever SQL: "latest record per employee"
+### The clever query: "latest record per employee"
 
-The hardest query is "each employee's current salary". Postgres `DISTINCT ON` does it in
-one shot (see `SalaryRecord.current`):
+The hardest part is "each employee's current salary". A portable window function does it
+in one shot — exactly one row per employee, even when effective dates tie:
 ```sql
-SELECT DISTINCT ON (employee_id) id FROM salary_records
-ORDER BY employee_id, effective_date DESC, id DESC
+SELECT ... FROM (
+  SELECT salary_records.*,
+         ROW_NUMBER() OVER (
+           PARTITION BY employee_id
+           ORDER BY effective_date DESC, id DESC
+         ) AS row_num
+  FROM salary_records
+) WHERE row_num = 1
 ```
-This returns the newest record per person. Everything else (payroll, medians, top earners)
-starts from this subquery.
+`row_num = 1` keeps only the newest record per person. (On PostgreSQL the same result came
+from `DISTINCT ON (employee_id)`, but `ROW_NUMBER` is portable to SQLite — see ADR-012.)
 
 ---
 
@@ -359,18 +366,18 @@ Documented in `docs/performance.md`:
 | Operation | Target | Actual |
 |---|---|---|
 | Employee list (search/filter/paginate) | < 100 ms | single-digit ms |
-| Dashboard summary over 10k employees | < 200 ms | **~176 ms** |
-| Seed 10k employees + 24k salary records | < 30 s | **~3.5 s** |
-| Full test suite | < 60 s | **~2 s** |
-| CSV export of all 10k employees | — | ~0.8 s, ~590 kB |
+| Dashboard summary over 10k employees | < 300 ms | **~230 ms** |
+| Seed 10k employees + 24k salary records | < 30 s | **~7 s** |
+| Full test suite | < 60 s | **~4 s** |
+| CSV export of all 10k employees | — | ~590 kB |
 
 The levers: **indexes** on every filter/sort column; **`includes`** to avoid N+1;
-**SQL aggregation** instead of loading rows into Ruby; **`insert_all`** bulk seeding;
+a **single window query** for current salaries; **`insert_all`** bulk seeding;
 **lazy-loaded** charts on the frontend.
 
-What we deliberately did **not** add (and can defend): no Redis/memcached (176 ms doesn't
-need caching), no background jobs (the seed is 3.5 s), no Elasticsearch (SQL `ILIKE` is
-plenty at 10k rows).
+What we deliberately did **not** add (and can defend): no Redis/memcached (230 ms doesn't
+need caching), no background jobs (the seed is ~7 s), no Elasticsearch (`LIKE` is plenty
+at 10k rows).
 
 ---
 
@@ -412,14 +419,16 @@ The pattern: **every exclusion has a reason**, and nothing is excluded by accide
 
 ## 16. Deployment — how it goes live
 
-- `render.yaml` describes the whole thing: a Ruby web service + a managed Postgres database.
+- `render.yaml` describes the whole thing: a Ruby web service with a mounted disk holding
+  the SQLite file.
 - Build step runs `npm ci && npm run build` in `frontend/` (compiling the SPA into Rails'
   `public/`), then `bundle install`.
 - Start command: `bin/rails server`. Health check: `/api/v1/health`.
 - **Two manual one-time steps** after deploy: set `RAILS_MASTER_KEY` (the file
   `config/master.key` decrypts `config/credentials.yml.enc`) and run `bin/rails db:seed`
   once in the Render shell.
-- The production config reads the DB from the `DATABASE_URL` env var Render provides.
+- The production config reads the database path from the `DATABASE_PATH` env var (pointing
+  at the mounted disk), so the SQLite file survives deploys.
 
 The local production smoke test already passed: booting with `RAILS_ENV=production` against
 a production database, seeding 10k employees, and hitting `/api/v1/health`, `/`, and
@@ -430,15 +439,15 @@ a production database, seeding 10k employees, and hitting `/api/v1/health`, `/`,
 ## 17. The elevator pitch (30 seconds)
 
 > "We replaced a spreadsheet-based salary system with a web app for an HR manager. Rails 8
-> serves both a JSON API and a React SPA from one deployable unit on Render. The data model
-> is deliberately just two tables — employees and an effective-dated salary history — so
-> current salary is always the latest record and nothing is ever overwritten. Every report
-> on the dashboard is computed in SQL over annualized, per-currency amounts: payroll
-> totals, average and median by department and country, a salary distribution histogram,
-> and top earners per currency. It's seeded deterministically with 10,000 realistic
-> employees in about three and a half seconds, the full dashboard aggregates in about 176
-> milliseconds, and 67 fast, deterministic specs cover the models, the stats math, every
-> endpoint, and one end-to-end system test. The requirements document, architecture
+> serves both a JSON API and a React SPA from one deployable unit on Render, backed by
+> SQLite. The data model is deliberately just two tables — employees and an effective-dated
+> salary history — so current salary is always the latest record and nothing is ever
+> overwritten. Every report on the dashboard is computed over annualized, per-currency
+> (INR and USD) amounts: payroll totals, average and median by department and country, a
+> salary distribution histogram, and top earners per currency. It's seeded deterministically
+> with 10,000 realistic employees in about seven seconds, the full dashboard responds in
+> about 230 milliseconds, and 67 fast, deterministic specs cover the models, the stats math,
+> every endpoint, and one end-to-end system test. The requirements document, architecture
 > diagram, and an ADR-style decision log explain every trade-off, including what we
 > deliberately left out: authentication, payroll processing, and currency conversion."
 

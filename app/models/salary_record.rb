@@ -23,15 +23,6 @@ class SalaryRecord < ApplicationRecord
 
   scope :for_year, ->(year) { where("effective_date <= ?", Date.new(year, 12, 31)) }
 
-  # The latest record per employee (current salary). Implemented as a subquery
-  # over ids so aggregations (group/pluck) preserve "one record per employee".
-  scope :current, -> do
-    latest_ids = SalaryRecord
-      .select("DISTINCT ON (salary_records.employee_id) salary_records.id")
-      .order("salary_records.employee_id, salary_records.effective_date DESC, salary_records.id DESC")
-    where(id: latest_ids)
-  end
-
   # Normalizes any salary to an annual figure for cross-frequency comparison.
   def annualized_amount
     case frequency

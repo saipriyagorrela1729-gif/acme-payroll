@@ -15,22 +15,13 @@ module Seed
       "HR" => 0.95
     }.freeze
 
-    # Country => local currency + salary convention.
-    # amount is expressed as an ANNUALIZED figure in local currency; the stored
-    # value is derived from the frequency (monthly countries store amount / 12).
+    # Supported currencies: INR (India, paid monthly) and USD (US, paid annually).
+    # Country => local currency + salary convention. amount is expressed as an
+    # ANNUALIZED figure in local currency; the stored value is derived from the
+    # frequency (monthly countries store amount / 12).
     COUNTRY_CONFIG = {
-      "US" => { currency: "USD", frequency: "annual", min: 50_000, max: 200_000 },
-      "GB" => { currency: "GBP", frequency: "annual", min: 30_000, max: 120_000 },
-      "AU" => { currency: "AUD", frequency: "annual", min: 70_000, max: 180_000 },
-      "CA" => { currency: "CAD", frequency: "annual", min: 50_000, max: 150_000 },
-      "SG" => { currency: "SGD", frequency: "annual", min: 50_000, max: 200_000 },
-      "AE" => { currency: "AED", frequency: "annual", min: 80_000, max: 400_000 },
-      "DE" => { currency: "EUR", frequency: "monthly", min: 45_000, max: 130_000 },
-      "FR" => { currency: "EUR", frequency: "monthly", min: 40_000, max: 120_000 },
-      "NL" => { currency: "EUR", frequency: "monthly", min: 40_000, max: 110_000 },
       "IN" => { currency: "INR", frequency: "monthly", min: 300_000, max: 3_500_000 },
-      "BR" => { currency: "BRL", frequency: "monthly", min: 50_000, max: 300_000 },
-      "JP" => { currency: "JPY", frequency: "monthly", min: 4_000_000, max: 15_000_000 }
+      "US" => { currency: "USD", frequency: "annual", min: 50_000, max: 200_000 }
     }.freeze
 
     BATCH_SIZE = 1_000

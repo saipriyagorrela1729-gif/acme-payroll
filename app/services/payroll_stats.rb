@@ -1,27 +1,57 @@
 # Aggregates "how the org pays people" from the current salary of every employee.
-# All comparisons use the annualized amount, always grouped by currency (no FX).
-# Every metric is computed in SQL (window functions + set aggregation), so no
-# employee rows are loaded into Ruby memory.
+# The current salaries are fetched in a single query (one row per employee, via a
+# window function) and the statistics are computed in Ruby. This keeps the SQL
+# portable across SQLite and PostgreSQL and avoids re-running the window function
+# for every metric. All comparisons are grouped by currency (no FX).
 class PayrollStats
   BUCKET_COUNT = 10
 
   def call
-    current = SalaryRecord.current.joins(:employee)
+    salaries = current_salary_rows
 
     {
       headcount: headcount,
-      payroll: payroll(current),
-      by_department: grouped(current, "employees.department"),
-      by_country: grouped(current, "employees.country"),
-      distribution: distribution,
-      top_earners: top_earners
+      payroll: payroll(salaries),
+      by_department: grouped(salaries, :department),
+      by_country: grouped(salaries, :country),
+      distribution: distribution(salaries),
+      top_earners: top_earners(salaries)
     }
   end
 
   private
 
-  def annualized_sql
-    Arel.sql(SalaryRecord::ANNUALIZED_SQL)
+  # One row per employee: the CURRENT (latest) salary, joined to the employee.
+  # Uses a window function so it is portable across SQLite and PostgreSQL and
+  # returns exactly one row per employee even when effective_dates tie.
+  def current_salary_rows
+    rows = SalaryRecord.connection.select_all(<<~SQL.squish).to_a
+      SELECT currency, department, country, name, annualized
+      FROM (
+        SELECT salary_records.currency AS currency,
+               employees.department AS department,
+               employees.country AS country,
+               employees.name AS name,
+               #{SalaryRecord::ANNUALIZED_SQL} AS annualized,
+               ROW_NUMBER() OVER (
+                 PARTITION BY salary_records.employee_id
+                 ORDER BY salary_records.effective_date DESC, salary_records.id DESC
+               ) AS row_num
+        FROM salary_records
+        JOIN employees ON employees.id = salary_records.employee_id
+      ) ranked_salaries
+      WHERE row_num = 1
+    SQL
+
+    rows.map do |row|
+      {
+        currency: row["currency"],
+        department: row["department"],
+        country: row["country"],
+        name: row["name"],
+        annualized: row["annualized"].to_f
+      }
+    end
   end
 
   def headcount
@@ -32,109 +62,66 @@ class PayrollStats
     }
   end
 
-  def payroll(current)
-    current.group("salary_records.currency")
-      .pluck("salary_records.currency", Arel.sql("SUM(#{annualized_sql}) AS total"))
-      .to_h do |currency, total|
-        annualized = total.to_f
-        [ currency, { "annualized" => annualized, "monthly" => (annualized / 12).round(2) } ]
-      end
-  end
-
-  def grouped(current, column)
-    current.group(column, "salary_records.currency")
-      .pluck(
-        column,
-        "salary_records.currency",
-        Arel.sql("COUNT(*) AS count"),
-        Arel.sql("ROUND(AVG(#{annualized_sql})) AS average"),
-        Arel.sql("ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY #{annualized_sql})) AS median")
-      )
-      .map do |name, currency, count, average, median|
-        {
-          name: name,
-          currency: currency,
-          employees: count,
-          average: average.to_f,
-          median: median.to_f
-        }
-      end
-  end
-
-  def distribution
-    rows = SalaryRecord.connection.select_all(<<~SQL.squish).to_a
-      SELECT currency, band, COUNT(*) AS count, MIN(min_amount) AS min_amount, MAX(max_amount) AS max_amount
-      FROM (
-        SELECT
-          cs.currency,
-          WIDTH_BUCKET(cs.annualized, MIN(cs.annualized) OVER w, MAX(cs.annualized) OVER w + 0.01, #{BUCKET_COUNT}) AS band,
-          MIN(cs.annualized) OVER w AS min_amount,
-          MAX(cs.annualized) OVER w AS max_amount
-        FROM (
-          SELECT salary_records.currency, #{SalaryRecord::ANNUALIZED_SQL} AS annualized
-          FROM salary_records
-          WHERE salary_records.id IN (
-            SELECT DISTINCT ON (employee_id) id
-            FROM salary_records
-            ORDER BY employee_id, effective_date DESC, id DESC
-          )
-        ) cs
-        WINDOW w AS (PARTITION BY cs.currency)
-      ) t
-      GROUP BY currency, band, min_amount, max_amount
-      ORDER BY currency, band
-    SQL
-
-    rows.group_by { |row| row["currency"] }.transform_values do |group|
-      min = group.first["min_amount"].to_f
-      max = group.first["max_amount"].to_f
-      width = (max - min) / BUCKET_COUNT.to_f
-      counts = Array.new(BUCKET_COUNT, 0)
-      group.each { |row| counts[row["band"].to_i - 1] = row["count"] }
-
-      counts.each_with_index.map do |count, index|
-        {
-          band: index + 1,
-          label: "#{(min + (index * width)).round(0)}–#{(min + ((index + 1) * width)).round(0)}",
-          count: count
-        }
-      end
+  def payroll(salaries)
+    salaries.group_by { |salary| salary[:currency] }.transform_values do |group|
+      annualized = group.sum { |salary| salary[:annualized] }
+      { "annualized" => annualized.round(2), "monthly" => (annualized / 12).round(2) }
     end
   end
 
-  def top_earners
-    rows = SalaryRecord.connection.select_all(<<~SQL.squish).to_a
-      SELECT currency, name, department, country, annualized_amount
-      FROM (
-        SELECT
-          salary_records.currency,
-          employees.name,
-          employees.department,
-          employees.country,
-          #{SalaryRecord::ANNUALIZED_SQL} AS annualized_amount,
-          ROW_NUMBER() OVER (
-            PARTITION BY salary_records.currency
-            ORDER BY #{SalaryRecord::ANNUALIZED_SQL} DESC
-          ) AS rank
-        FROM salary_records
-        JOIN employees ON employees.id = salary_records.employee_id
-        WHERE salary_records.id IN (
-          SELECT DISTINCT ON (employee_id) id
-          FROM salary_records
-          ORDER BY employee_id, effective_date DESC, id DESC
-        )
-      ) ranked
-      WHERE rank <= 10
-    SQL
+  def grouped(salaries, key)
+    salaries.group_by { |salary| [ salary[key], salary[:currency] ] }.map do |(name, currency), group|
+      amounts = group.map { |salary| salary[:annualized] }.sort
+      {
+        name: name,
+        currency: currency,
+        employees: amounts.size,
+        average: (amounts.sum / amounts.size).round(2),
+        median: median(amounts).round(2)
+      }
+    end
+  end
 
-    rows.group_by { |row| row["currency"] }.transform_values do |group|
-      group.map do |row|
+  def median(sorted_amounts)
+    size = sorted_amounts.size
+    return sorted_amounts.first if size.odd?
+
+    (sorted_amounts[(size / 2) - 1] + sorted_amounts[size / 2]) / 2.0
+  end
+
+  def distribution(salaries)
+    salaries.group_by { |salary| salary[:currency] }
+      .transform_values { |group| bucketize(group.map { |salary| salary[:annualized] }) }
+  end
+
+  def bucketize(amounts)
+    min = amounts.min
+    width = (amounts.max - min) / BUCKET_COUNT.to_f
+    counts = Array.new(BUCKET_COUNT, 0)
+
+    amounts.each do |amount|
+      index = width.zero? ? 0 : [ ((amount - min) / width).floor, BUCKET_COUNT - 1 ].min
+      counts[index] += 1
+    end
+
+    counts.each_with_index.map do |count, index|
+      {
+        band: index + 1,
+        label: "#{(min + (index * width)).round(0)}–#{(min + ((index + 1) * width)).round(0)}",
+        count: count
+      }
+    end
+  end
+
+  def top_earners(salaries)
+    salaries.group_by { |salary| salary[:currency] }.transform_values do |group|
+      group.sort_by { |salary| -salary[:annualized] }.first(10).map do |salary|
         {
-          name: row["name"],
-          department: row["department"],
-          country: row["country"],
-          currency: row["currency"],
-          annualized_amount: row["annualized_amount"].to_f
+          name: salary[:name],
+          department: salary[:department],
+          country: salary[:country],
+          currency: salary[:currency],
+          annualized_amount: salary[:annualized]
         }
       end
     end

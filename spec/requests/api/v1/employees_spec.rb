@@ -139,7 +139,7 @@ RSpec.describe "Api::V1::Employees", type: :request do
     it "returns 422 with validation errors for invalid params" do
       post "/api/v1/employees", params: { employee: { name: "", email: "bad" } }.to_json, headers: headers
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(json["errors"]).to have_key("email")
       expect(json["errors"]).to have_key("job_title")
     end
@@ -201,7 +201,7 @@ RSpec.describe "Api::V1::Employees", type: :request do
            params: { salary_record: { amount: -5, currency: "INR", frequency: "monthly", effective_date: "2025-01-01" } }.to_json,
            headers: headers
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(json["errors"]).to have_key("amount")
     end
 

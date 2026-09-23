@@ -4,7 +4,7 @@
 
 A **single Ruby on Rails 8 monolith** that exposes a JSON API and **serves the compiled
 React + TypeScript single-page application** from its `public/` directory. One repository,
-one deployable unit. PostgreSQL is the only datastore.
+one deployable unit. SQLite (a file) is the only datastore.
 
 ```
                          Browser (HR Manager)
@@ -21,7 +21,7 @@ one deployable unit. PostgreSQL is the only datastore.
               │  └────────────────┘   └────────┬────────┘  │
               │                                 │          │
               │  ┌──────────────────────────────▼────────┐ │
-              │  │  PostgreSQL 16                        │ │
+              │  │  SQLite (storage/*.sqlite3)          │ │
               │  │  employees, salary_records            │ │
               │  └───────────────────────────────────────┘ │
               └────────────────────────────────────────────┘
@@ -81,6 +81,6 @@ consistent** with the records, which is what the tests assert.
 ## 6. Deployment (Render)
 
 - Web service: Rails (Puma). Build command runs `npm ci && npm run build` before Rails boots.
-- Managed PostgreSQL instance (free tier).
+- SQLite file on a mounted persistent disk (Render). No database server to manage.
 - `GET /api/v1/health` is the health check.
 - Seed run once via a release/console task after first deploy.

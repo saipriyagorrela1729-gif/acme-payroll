@@ -28,7 +28,7 @@ Contract: <exact behavior — inputs, outputs, edge cases>
 Files:    <which files to create/change>
 Tests:    <write these specs first; they must fail before implementation (red)>
 Constraints:
-  - Rails 8, PostgreSQL, RSpec, FactoryBot
+  - Rails 8, SQLite, RSpec, FactoryBot
   - No new gems unless listed
   - Follow existing code style in this repo
   - No comments in code unless asked
@@ -61,11 +61,12 @@ After implementing, run: bin/rspec <files> and show me the output.
 
 ### Phase 5 — PayrollStats
 - Prompt: *"Aggregate 'current salary per employee' and summary stats in SQL only, grouped
-  by currency, per the PayrollStats spec. Use DISTINCT ON, window functions, PERCENTILE_CONT."*
-- Review: Rails 8's "dangerous query method" guard rejected raw SQL strings — wrapped in
-  `Arel.sql` (correct, since our fragments are static constants, not user input). Profiled
-  each metric; `distribution` initially loaded 10k rows into Ruby (100ms) — moved to a
-  `WIDTH_BUCKET` window query. Summary now ~176ms, zero employee rows loaded into Ruby.
+  by currency, per the PayrollStats spec. Use a portable ROW_NUMBER window for current salary."*
+- Review: Rails 8's "dangerous query method" guard rejected raw SQL strings in `pluck` —
+  wrapped in `Arel.sql` (correct, since our fragments are static constants, not user input).
+  Profiled each metric. Later, when the project moved to SQLite (ADR-012), the
+  Postgres-only `PERCENTILE_CONT`/`WIDTH_BUCKET` were replaced with a portable `ROW_NUMBER`
+  window plus Ruby math, and the summary now runs in ~52ms of service time.
 
 ### Phase 7-9 — React SPA
 - Prompt: *"Build a minimal React + TS SPA (Vite) with 4 pages against the /api/v1 contract

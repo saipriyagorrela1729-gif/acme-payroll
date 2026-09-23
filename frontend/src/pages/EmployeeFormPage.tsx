@@ -3,8 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { EmployeePayload } from '../api/types'
 
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'JPY', 'AUD', 'CAD', 'SGD', 'AED', 'BRL']
-const COUNTRIES = ['US', 'GB', 'AU', 'CA', 'SG', 'AE', 'DE', 'FR', 'NL', 'IN', 'BR', 'JP']
+const CURRENCIES = ['INR', 'USD']
+const COUNTRIES = ['IN', 'US']
 const DEPARTMENTS = [
   'Engineering', 'Product', 'Sales', 'Finance', 'Legal', 'Operations',
   'Marketing', 'Design', 'Customer Support', 'HR',
@@ -20,8 +20,8 @@ export default function EmployeeFormPage() {
     email: '',
     job_title: '',
     department: '',
-    country: 'US',
-    currency: 'USD',
+    country: 'IN',
+    currency: 'INR',
     hire_date: new Date().toISOString().slice(0, 10),
     status: 'active',
   })
@@ -119,10 +119,10 @@ export default function EmployeeFormPage() {
 }
 
 const COUNTRY_CURRENCY: Record<string, string> = {
-  US: 'USD', GB: 'GBP', AU: 'AUD', CA: 'CAD', SG: 'SGD', AE: 'AED',
-  DE: 'EUR', FR: 'EUR', NL: 'EUR', IN: 'INR', BR: 'BRL', JP: 'JPY',
+  IN: 'INR',
+  US: 'USD',
 }
 
 function countryCurrency(country: string): string {
-  return COUNTRY_CURRENCY[country] ?? 'USD'
+  return COUNTRY_CURRENCY[country] ?? 'INR'
 }

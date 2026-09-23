@@ -38,13 +38,12 @@ RSpec.describe Seed::DatabasePopulator, type: :service do
       expect(second_run).to eq(first_run)
     end
 
-    it "uses realistic currencies and frequencies across countries" do
+    it "uses only INR and USD across the two supported countries" do
       Seed::DatabasePopulator.new(employee_count: 100).call
 
-      currencies = SalaryRecord.distinct.pluck(:currency)
-      expect(currencies).to include("USD", "INR", "EUR")
-      frequencies = SalaryRecord.distinct.pluck(:frequency)
-      expect(frequencies).to include("annual", "monthly")
+      expect(SalaryRecord.distinct.pluck(:currency)).to match_array(%w[INR USD])
+      expect(Employee.distinct.pluck(:country)).to match_array(%w[IN US])
+      expect(SalaryRecord.distinct.pluck(:frequency)).to include("annual", "monthly")
     end
 
     it "refuses to seed a database that already has employees" do
