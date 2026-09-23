@@ -15,6 +15,7 @@ import {
 import { api } from '../api/client'
 import type { PayrollSummary } from '../api/types'
 import { formatBand, formatCompact, formatMoney, formatNumber } from '../lib/format'
+import Spinner from '../components/Spinner'
 
 const PIE_COLORS = ['#6d28d9', '#f43f5e']
 const BAR_COLORS = ['#6d28d9', '#c084fc']
@@ -55,7 +56,7 @@ export default function DashboardPage() {
   const topEarners = useMemo(() => (summary?.top_earners[currency] ?? []), [summary, currency])
 
   if (error) return <div className="error-banner">{error}</div>
-  if (!summary) return <p className="muted">Loading…</p>
+  if (!summary) return <Spinner label="Loading dashboard…" />
 
   return (
     <>

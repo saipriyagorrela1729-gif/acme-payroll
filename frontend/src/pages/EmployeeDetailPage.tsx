@@ -3,12 +3,15 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Employee, SalaryRecordPayload } from '../api/types'
 import { formatDate, formatMoney } from '../lib/format'
+import Spinner from '../components/Spinner'
 
 export default function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Add-salary form
   const [amount, setAmount] = useState('')
@@ -32,6 +35,7 @@ export default function EmployeeDetailPage() {
   const addSalary = async (e: FormEvent) => {
     e.preventDefault()
     setFormError('')
+    setSaving(true)
     try {
       await api.createSalaryRecord(Number(id), {
         amount,
@@ -43,17 +47,25 @@ export default function EmployeeDetailPage() {
       load()
     } catch (err) {
       setFormError((err as Error).message)
+    } finally {
+      setSaving(false)
     }
   }
 
   const remove = async () => {
     if (!window.confirm(`Delete ${employee?.name} and their salary history?`)) return
-    await api.deleteEmployee(employee!.id)
-    navigate('/employees')
+    setDeleting(true)
+    try {
+      await api.deleteEmployee(employee!.id)
+      navigate('/employees')
+    } catch (err) {
+      setError((err as Error).message)
+      setDeleting(false)
+    }
   }
 
   if (error) return <div className="error-banner">{error}</div>
-  if (!employee) return <p className="muted">Loading…</p>
+  if (!employee) return <Spinner label="Loading employee…" />
 
   const history = employee.salary_history ?? []
 
@@ -68,8 +80,8 @@ export default function EmployeeDetailPage() {
           <Link className="btn secondary" to={`/employees/${employee.id}/edit`}>
             Edit
           </Link>{' '}
-          <button className="btn danger" onClick={remove}>
-            Delete
+          <button className="btn danger" onClick={remove} disabled={deleting}>
+            {deleting ? 'Deleting…' : 'Delete'}
           </button>
         </div>
       </div>
@@ -138,7 +150,9 @@ export default function EmployeeDetailPage() {
               <input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} required />
             </label>
             <div className="full">
-              <button className="btn" type="submit">Save salary</button>
+              <button className="btn" type="submit" disabled={saving}>
+                {saving ? 'Saving…' : 'Save salary'}
+              </button>
             </div>
           </form>
         </div>

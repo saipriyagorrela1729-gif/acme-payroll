@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { EmployeePayload } from '../api/types'
+import Spinner from '../components/Spinner'
 
 const CURRENCIES = ['INR', 'USD']
 const COUNTRIES = ['IN', 'US']
@@ -26,6 +27,8 @@ export default function EmployeeFormPage() {
     status: 'active',
   })
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(editing)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -41,7 +44,7 @@ export default function EmployeeFormPage() {
         hire_date: e.hire_date,
         status: e.status,
       })
-    }).catch((err: Error) => setError(err.message))
+    }).catch((err: Error) => setError(err.message)).finally(() => setLoading(false))
   }, [id])
 
   const set = (key: keyof EmployeePayload, value: string) => setForm((f) => ({ ...f, [key]: value }))
@@ -49,6 +52,7 @@ export default function EmployeeFormPage() {
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
+    setSubmitting(true)
     try {
       const result = editing
         ? await api.updateEmployee(Number(id), form)
@@ -56,8 +60,11 @@ export default function EmployeeFormPage() {
       navigate(`/employees/${result.employee.id}`)
     } catch (err) {
       setError((err as Error).message)
+      setSubmitting(false)
     }
   }
+
+  if (loading) return <Spinner label="Loading employee…" />
 
   return (
     <>
@@ -111,7 +118,9 @@ export default function EmployeeFormPage() {
           </select>
         </label>
         <div className="full">
-          <button className="btn" type="submit">{editing ? 'Save changes' : 'Create employee'}</button>
+          <button className="btn" type="submit" disabled={submitting}>
+            {submitting ? 'Saving…' : editing ? 'Save changes' : 'Create employee'}
+          </button>
         </div>
       </form>
     </>

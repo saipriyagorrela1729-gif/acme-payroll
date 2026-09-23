@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Employee, EmployeeListResponse } from '../api/types'
 import { formatMoney } from '../lib/format'
+import Spinner from '../components/Spinner'
 
 const PER_PAGE = 20
 
 export default function EmployeesPage() {
   const [result, setResult] = useState<EmployeeListResponse | null>(null)
+  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -32,10 +34,12 @@ export default function EmployeesPage() {
     if (country) params.set('country', country)
     if (status) params.set('status', status)
 
+    setLoading(true)
     api
       .listEmployees(params)
       .then(setResult)
       .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false))
   }, [page, search, department, country, status])
 
   const applySearch = () => {
@@ -85,45 +89,49 @@ export default function EmployeesPage() {
         </select>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Department</th>
-            <th>Country</th>
-            <th>Status</th>
-            <th>Current salary</th>
-          </tr>
-        </thead>
-        <tbody>
-          {result?.data.map((employee: Employee) => (
-            <tr key={employee.id}>
-              <td>
-                <Link to={`/employees/${employee.id}`}>{employee.name}</Link>
-              </td>
-              <td>{employee.email}</td>
-              <td>{employee.department}</td>
-              <td>{employee.country}</td>
-              <td>
-                <span className={`badge ${employee.status}`}>{employee.status}</span>
-              </td>
-              <td>
-                {employee.current_salary
-                  ? `${formatMoney(employee.current_salary.amount, employee.current_salary.currency)} / ${employee.current_salary.frequency}`
-                  : '—'}
-              </td>
-            </tr>
-          ))}
-          {result && result.data.length === 0 && (
-            <tr>
-              <td colSpan={6} className="muted">No employees match your filters.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      {loading && <Spinner label="Loading employees…" />}
 
-      {result && (
+      {!loading && (
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Department</th>
+              <th>Country</th>
+              <th>Status</th>
+              <th>Current salary</th>
+            </tr>
+          </thead>
+          <tbody>
+            {result?.data.map((employee: Employee) => (
+              <tr key={employee.id}>
+                <td>
+                  <Link to={`/employees/${employee.id}`}>{employee.name}</Link>
+                </td>
+                <td>{employee.email}</td>
+                <td>{employee.department}</td>
+                <td>{employee.country}</td>
+                <td>
+                  <span className={`badge ${employee.status}`}>{employee.status}</span>
+                </td>
+                <td>
+                  {employee.current_salary
+                    ? `${formatMoney(employee.current_salary.amount, employee.current_salary.currency)} / ${employee.current_salary.frequency}`
+                    : '—'}
+                </td>
+              </tr>
+            ))}
+            {result && result.data.length === 0 && (
+              <tr>
+                <td colSpan={6} className="muted">No employees match your filters.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
+
+      {!loading && result && (
         <div className="pagination">
           <span className="muted">
             {result.meta.total_count.toLocaleString()} employees

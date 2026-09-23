@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
+import Spinner from './components/Spinner'
 import EmployeeDetailPage from './pages/EmployeeDetailPage'
 import EmployeeFormPage from './pages/EmployeeFormPage'
 import EmployeesPage from './pages/EmployeesPage'
@@ -19,7 +20,7 @@ export default function App() {
       </nav>
 
       <main className="container">
-        <Suspense fallback={<p className="muted">Loading…</p>}>
+        <Suspense fallback={<Spinner label="Loading…" />}>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/employees" element={<EmployeesPage />} />
