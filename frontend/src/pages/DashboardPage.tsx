@@ -34,15 +34,6 @@ export default function DashboardPage() {
     }).catch((e: Error) => setError(e.message))
   }, [])
 
-  const payrollData = useMemo(
-    () =>
-      Object.entries(summary?.payroll ?? {}).map(([currency, value]) => ({
-        currency,
-        annualized: Math.round(value.annualized),
-      })),
-    [summary],
-  )
-
   const headcountData = useMemo(() => {
     if (!summary) return []
     return [
@@ -101,19 +92,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="charts">
-        <div className="card full">
-          <h2>Annualized payroll by currency</h2>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={payrollData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="currency" tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={(v) => formatCompact(v as number)} width={55} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(v) => formatNumber(v as number)} />
-              <Bar dataKey="annualized" fill="#6d28d9" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
         <div className="card">
           <h2>Headcount</h2>
           <ResponsiveContainer width="100%" height={260}>
