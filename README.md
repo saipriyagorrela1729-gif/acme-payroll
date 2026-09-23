@@ -77,8 +77,7 @@ SQLite volume). Full step-by-step runbook: **[`docs/deploy-oracle.md`](docs/depl
 ```bash
 # on the VM, after cloning the repo
 cp .env.example .env          # set SECRET_KEY_BASE and DOMAIN
-docker compose up -d --build
-docker compose exec app bin/rails db:seed
+docker compose up -d --build  # first boot creates and seeds the SQLite DB automatically
 ```
 
 A `render.yaml` blueprint is also included as an alternative, but Render persistent disks

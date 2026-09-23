@@ -78,15 +78,22 @@ DOMAIN=203-0-113-10.sslip.io          # your public IP with dots -> dashes + .ss
 > so Caddy can obtain a real Let's Encrypt certificate without you owning a domain. If you
 > do have a domain, point an A record at the VM and set `DOMAIN` to it.
 
-## 6. Build, start, seed
+## 6. Build and start
 
 ```bash
 docker compose up -d --build          # builds frontend + Rails image, starts app + Caddy
-docker compose exec app bin/rails db:seed   # ~7s, creates 10,000 employees
+docker compose logs -f app            # first boot creates + seeds the DB (~10s)
 docker compose logs -f caddy          # watch for the certificate being issued
 ```
 
+On the **first boot** the container runs `bin/rails db:prepare`, which creates the SQLite
+database, loads the schema, **and seeds 10,000 employees** (Rails runs the seed for a
+brand-new database). The seed is written to the `sqlite_data` volume, so it happens once —
+later boots only run migrations.
+
 Open **https://YOUR-DOMAIN** — the dashboard loads with INR default.
+
+To reseed from scratch later: `docker compose exec app bin/rails db:reset`.
 
 ## 7. Day-to-day
 
