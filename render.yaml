@@ -1,18 +1,17 @@
-# Render blueprint — see README "Deployment (Render)".
-# SQLite is a file, so a persistent disk keeps the database across deploys.
-# NOTE: Render persistent disks require a paid instance type (plan: starter, ~$7/mo).
-# On the free tier there is no disk and the database resets on deploy/restart —
-# you would re-run `bin/rails db:seed` after each deploy.
+# Render blueprint — deploys the app as a Docker image built from ./Dockerfile.
+#
+# SQLite is a file, so persistence needs a disk (paid instance type).
+#   - plan: starter + disk  => SQLite persists across deploys/restarts (~$7/mo).
+#   - plan: free (no disk)   => ephemeral; the DB is wiped on restart, but the
+#                               container's `db:prepare` re-creates and re-seeds
+#                               it on the next boot, so the app self-heals.
 services:
   - type: web
     name: acme-payroll
-    runtime: ruby
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     plan: starter
-    buildCommand: |
-      cd frontend && npm ci && npm run build && cd ..
-      bundle install
-    # db:prepare runs pending migrations at boot, on the mounted disk.
-    startCommand: bin/rails db:prepare && bin/rails server
     healthCheckPath: /api/v1/health
     envVars:
       - key: SECRET_KEY_BASE
