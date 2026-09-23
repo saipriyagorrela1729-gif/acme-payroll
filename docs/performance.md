@@ -81,7 +81,7 @@ salary per employee" window query without a full sort.
 | Employees list (page of 20, with search/filter) | < 100ms | ✓ (single-digit ms, indexed) |
 | Dashboard summary on 10k employees | < 300ms | ✓ ~230ms |
 | Seed 10k employees + salary history | < 30s | ✓ ~7s |
-| Full RSpec suite | < 60s | ✓ ~4s (67 examples) |
+| Full RSpec suite | < 60s | ✓ ~9s (67 examples, incl. coverage) |
 
 ## 7. Frontend bundle
 

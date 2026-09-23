@@ -39,3 +39,5 @@
 
 # Ignore Rails default static pages that an SPA replaces.
 /public/robots.txt
+# SimpleCov
+/coverage/
