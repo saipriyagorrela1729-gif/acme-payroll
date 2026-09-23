@@ -17,3 +17,19 @@ export function formatDate(date: string | undefined | null): string {
     day: 'numeric',
   })
 }
+
+// Compact form for chart axes: 2500000 -> "2.5M", 1200000000 -> "1.2B".
+export function formatCompact(value: number | string | undefined | null): string {
+  if (value === undefined || value === null || value === '') return '—'
+  return new Intl.NumberFormat(undefined, {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(Number(value))
+}
+
+// Distribution band labels come from the API as "44583–61702"; compact both ends.
+export function formatBand(label: string): string {
+  const [low, high] = label.split('–')
+  if (high === undefined) return formatCompact(label)
+  return `${formatCompact(low)}–${formatCompact(high)}`
+}

@@ -14,7 +14,7 @@ import {
 } from 'recharts'
 import { api } from '../api/client'
 import type { PayrollSummary } from '../api/types'
-import { formatMoney, formatNumber } from '../lib/format'
+import { formatBand, formatCompact, formatMoney, formatNumber } from '../lib/format'
 
 const PIE_COLORS = ['#6d28d9', '#f43f5e']
 const BAR_COLORS = ['#6d28d9', '#c084fc']
@@ -101,8 +101,8 @@ export default function DashboardPage() {
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={payrollData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="currency" />
-              <YAxis tickFormatter={(v) => formatNumber(v)} width={90} />
+              <XAxis dataKey="currency" tick={{ fontSize: 12 }} />
+              <YAxis tickFormatter={(v) => formatCompact(v as number)} width={55} tick={{ fontSize: 12 }} />
               <Tooltip formatter={(v) => formatNumber(v as number)} />
               <Bar dataKey="annualized" fill="#6d28d9" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -127,8 +127,8 @@ export default function DashboardPage() {
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={departmentData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-25} textAnchor="end" interval={0} height={70} />
-              <YAxis tickFormatter={(v) => formatNumber(v)} width={90} />
+              <XAxis dataKey="name" angle={-25} textAnchor="end" interval={0} height={70} tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => formatCompact(v as number)} width={55} tick={{ fontSize: 12 }} />
               <Tooltip formatter={(v) => formatNumber(v as number)} />
               <Legend />
               <Bar dataKey="Average" fill={BAR_COLORS[0]} radius={[4, 4, 0, 0]} />
@@ -139,13 +139,19 @@ export default function DashboardPage() {
 
         <div className="card">
           <h2>Salary distribution ({currency})</h2>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={distributionData}>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={distributionData} layout="vertical" margin={{ left: 8, right: 16 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" interval={0} angle={-40} textAnchor="end" height={80} />
-              <YAxis />
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+              <YAxis
+                type="category"
+                dataKey="label"
+                tickFormatter={formatBand}
+                width={95}
+                tick={{ fontSize: 11 }}
+              />
               <Tooltip formatter={(v) => formatNumber(v as number)} />
-              <Bar dataKey="count" fill="#6d28d9" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="count" fill="#6d28d9" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
