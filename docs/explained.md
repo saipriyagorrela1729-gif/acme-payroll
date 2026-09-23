@@ -424,9 +424,9 @@ The pattern: **every exclusion has a reason**, and nothing is excluded by accide
 - Build step runs `npm ci && npm run build` in `frontend/` (compiling the SPA into Rails'
   `public/`), then `bundle install`.
 - Start command: `bin/rails server`. Health check: `/api/v1/health`.
-- **Two manual one-time steps** after deploy: set `RAILS_MASTER_KEY` (the file
-  `config/master.key` decrypts `config/credentials.yml.enc`) and run `bin/rails db:seed`
-  once in the Render shell.
+- **One manual step** after deploy: run `bin/rails db:seed` once in the Render shell.
+- Production config comes from ENV: `SECRET_KEY_BASE` (Render generates it) and
+  `DATABASE_PATH`. There is no credentials file — this API app uses no cookies or sessions.
 - The production config reads the database path from the `DATABASE_PATH` env var (pointing
   at the mounted disk), so the SQLite file survives deploys.
 

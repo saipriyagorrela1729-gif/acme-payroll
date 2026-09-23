@@ -13,8 +13,8 @@ services:
     startCommand: bin/rails server
     healthCheckPath: /api/v1/health
     envVars:
-      - key: RAILS_MASTER_KEY
-        sync: false
+      - key: SECRET_KEY_BASE
+        generateValue: true
       - key: RAILS_ENV
         value: production
       - key: DATABASE_PATH

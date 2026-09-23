@@ -74,7 +74,8 @@ The repo includes a `render.yaml` blueprint. Steps:
 
 1. Push this repo to GitHub (commits already tell the evolution story).
 2. In Render: **New → Blueprint** and point at the repo (or create the resources manually).
-3. Set env var `RAILS_MASTER_KEY` to the contents of `config/master.key`.
+3. Render generates `SECRET_KEY_BASE` automatically (declared in `render.yaml`). No
+   credentials file is needed — this API app uses no cookies or sessions.
 4. After first deploy, seed once from the Render shell:
    ```bash
    bin/rails db:seed
