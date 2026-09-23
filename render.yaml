@@ -1,0 +1,18 @@
+# Render blueprint — deploys the app as a Docker image built from ./Dockerfile.
+#
+# Free plan: the filesystem is ephemeral, so the SQLite file does NOT persist
+# across restarts. The container's `db:prepare` re-creates and re-seeds it on
+# the next boot, so the app self-heals (with a slower first request).
+services:
+  - type: web
+    name: acme-payroll
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: RAILS_ENV
+        value: production

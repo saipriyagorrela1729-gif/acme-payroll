@@ -1,0 +1,8 @@
+# Caddy reverse proxy with automatic HTTPS.
+# DOMAIN is read from the environment (see .env / docker-compose.yml).
+# With no custom domain, use an sslip.io name that resolves to the VM's public IP,
+# e.g. DOMAIN=203-0-113-10.sslip.io — Caddy will obtain a Let's Encrypt certificate.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:3000
+}
