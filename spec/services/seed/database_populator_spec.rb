@@ -25,10 +25,22 @@ RSpec.describe Seed::DatabasePopulator, type: :service do
       end
     end
 
+    it "creates a CTC breakdown for every salary record whose earnings sum to the gross" do
+      result = Seed::DatabasePopulator.new(employee_count: 20).call
+
+      expect(result[:salary_component_count]).to eq(result[:salary_record_count] * 5)
+
+      record = SalaryRecord.first
+      expect(record.salary_components.map(&:name)).to include("Basic", "House Rent Allowance", "Provident Fund")
+      expect(record.gross_earnings).to eq(record.amount)
+      expect(record.net_pay).to be < record.gross_earnings
+    end
+
     it "is deterministic for a fixed seed" do
       Seed::DatabasePopulator.new(seed: 999, employee_count: 30).call
       first_run = SalaryRecord.sum(:amount)
 
+      SalaryComponent.delete_all
       SalaryRecord.delete_all
       Employee.delete_all
 

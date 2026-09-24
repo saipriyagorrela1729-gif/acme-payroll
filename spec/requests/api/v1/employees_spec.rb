@@ -1,13 +1,13 @@
 require "rails_helper"
 
 RSpec.describe "Api::V1::Employees", type: :request do
-  let(:headers) { { "Content-Type" => "application/json" } }
+  let(:headers) { auth_headers }
 
   describe "GET /api/v1/employees" do
     it "returns a paginated list of employees with meta" do
       create_list(:employee, 3)
 
-      get "/api/v1/employees"
+      get "/api/v1/employees", headers: headers
 
       expect(response).to have_http_status(:ok)
       expect(json["data"].size).to eq(3)
@@ -17,7 +17,7 @@ RSpec.describe "Api::V1::Employees", type: :request do
     it "paginates results" do
       create_list(:employee, 5)
 
-      get "/api/v1/employees", params: { page: 2, per_page: 2 }
+      get "/api/v1/employees", params: { page: 2, per_page: 2 }, headers: headers
 
       expect(json["data"].size).to eq(2)
       expect(json["meta"]["page"]).to eq(2)
@@ -25,7 +25,7 @@ RSpec.describe "Api::V1::Employees", type: :request do
     end
 
     it "caps per_page at 100" do
-      get "/api/v1/employees", params: { per_page: 500 }
+      get "/api/v1/employees", params: { per_page: 500 }, headers: headers
       expect(json["meta"]["per_page"]).to eq(100)
     end
 
@@ -33,7 +33,7 @@ RSpec.describe "Api::V1::Employees", type: :request do
       employee = create(:employee)
       create(:salary_record, employee: employee, amount: 90_000, frequency: "annual")
 
-      get "/api/v1/employees"
+      get "/api/v1/employees", headers: headers
 
       payload = json["data"].first
       expect(payload["current_salary"]["amount"]).to eq("90000.0")
@@ -43,7 +43,7 @@ RSpec.describe "Api::V1::Employees", type: :request do
     it "returns null current_salary when the employee has none" do
       create(:employee)
 
-      get "/api/v1/employees"
+      get "/api/v1/employees", headers: headers
 
       expect(json["data"].first["current_salary"]).to be_nil
     end
@@ -52,11 +52,11 @@ RSpec.describe "Api::V1::Employees", type: :request do
       create(:employee, name: "Priya Sharma", email: "priya@acme.example")
       create(:employee, name: "John Doe", email: "john@acme.example")
 
-      get "/api/v1/employees", params: { q: "priya" }
+      get "/api/v1/employees", params: { q: "priya" }, headers: headers
       expect(json["data"].size).to eq(1)
       expect(json["data"].first["email"]).to eq("priya@acme.example")
 
-      get "/api/v1/employees", params: { q: "@acme.example" }
+      get "/api/v1/employees", params: { q: "@acme.example" }, headers: headers
       expect(json["data"].size).to eq(2)
     end
 
@@ -65,13 +65,13 @@ RSpec.describe "Api::V1::Employees", type: :request do
       create(:employee, department: "Sales", country: "US", status: "terminated")
       create(:employee, department: "Engineering", country: "US", status: "active")
 
-      get "/api/v1/employees", params: { department: "Engineering" }
+      get "/api/v1/employees", params: { department: "Engineering" }, headers: headers
       expect(json["data"].size).to eq(2)
 
-      get "/api/v1/employees", params: { department: "Engineering", country: "US" }
+      get "/api/v1/employees", params: { department: "Engineering", country: "US" }, headers: headers
       expect(json["data"].size).to eq(1)
 
-      get "/api/v1/employees", params: { status: "terminated" }
+      get "/api/v1/employees", params: { status: "terminated" }, headers: headers
       expect(json["data"].size).to eq(1)
     end
 
@@ -83,11 +83,16 @@ RSpec.describe "Api::V1::Employees", type: :request do
         lambda { |*args| queries << args[4][:sql] if args[4][:sql].match?(/\ASELECT/) },
         "sql.active_record"
       ) do
-        get "/api/v1/employees", params: { per_page: 10 }
+        get "/api/v1/employees", params: { per_page: 10 }, headers: headers
       end
 
       salary_queries = queries.count { |sql| sql.include?("salary_records") }
       expect(salary_queries).to be <= 2
+    end
+
+    it "requires authentication" do
+      get "/api/v1/employees"
+      expect(response).to have_http_status(:unauthorized)
     end
   end
 
@@ -97,7 +102,7 @@ RSpec.describe "Api::V1::Employees", type: :request do
       create(:salary_record, employee: employee, amount: 70_000, effective_date: Date.new(2023, 1, 1))
       create(:salary_record, employee: employee, amount: 80_000, effective_date: Date.new(2024, 1, 1))
 
-      get "/api/v1/employees/#{employee.id}"
+      get "/api/v1/employees/#{employee.id}", headers: headers
 
       expect(response).to have_http_status(:ok)
       expect(json["employee"]["id"]).to eq(employee.id)
@@ -106,7 +111,7 @@ RSpec.describe "Api::V1::Employees", type: :request do
     end
 
     it "returns 404 for a missing employee" do
-      get "/api/v1/employees/999999"
+      get "/api/v1/employees/999999", headers: headers
 
       expect(response).to have_http_status(:not_found)
       expect(json["errors"]).to include("Employee not found")
@@ -167,7 +172,7 @@ RSpec.describe "Api::V1::Employees", type: :request do
       employee = create(:employee)
       create(:salary_record, employee: employee)
 
-      delete "/api/v1/employees/#{employee.id}"
+      delete "/api/v1/employees/#{employee.id}", headers: headers
 
       expect(response).to have_http_status(:no_content)
       expect(Employee.exists?(employee.id)).to be(false)
@@ -211,16 +216,68 @@ RSpec.describe "Api::V1::Employees", type: :request do
     end
   end
 
+  describe "salary breakdown" do
+    it "returns components and computed gross/deductions/net on the detail" do
+      employee = create(:employee)
+      record = create(:salary_record, employee: employee, amount: 1_000, frequency: "monthly")
+      create(:salary_component, salary_record: record, name: "Basic", kind: "earning", amount: 600, position: 1)
+      create(:salary_component, salary_record: record, name: "HRA", kind: "earning", amount: 400, position: 2)
+      create(:salary_component, salary_record: record, name: "Provident Fund", kind: "deduction", amount: 100, position: 3)
+
+      get "/api/v1/employees/#{employee.id}", headers: headers
+
+      current = json["employee"]["current_salary"]
+      expect(current["gross_earnings"]).to eq("1000.0")
+      expect(current["total_deductions"]).to eq("100.0")
+      expect(current["net_pay"]).to eq("900.0")
+      expect(current["salary_components"].size).to eq(3)
+    end
+
+    it "creates a salary record with nested components and syncs the gross amount" do
+      employee = create(:employee)
+      params = {
+        salary_record: {
+          currency: "INR", frequency: "monthly", effective_date: "2025-01-01",
+          salary_components_attributes: [
+            { name: "Basic", kind: "earning", amount: 600, position: 1 },
+            { name: "HRA", kind: "earning", amount: 400, position: 2 },
+            { name: "Provident Fund", kind: "deduction", amount: 100, position: 3 }
+          ]
+        }
+      }
+
+      post "/api/v1/employees/#{employee.id}/salary_records", params: params.to_json, headers: headers
+
+      expect(response).to have_http_status(:created)
+      expect(json["salary_record"]["gross_earnings"]).to eq("1000.0")
+      expect(json["salary_record"]["net_pay"]).to eq("900.0")
+    end
+
+    it "edits a breakdown and recalculates the total salary" do
+      employee = create(:employee)
+      record = create(:salary_record, employee: employee, amount: 1_000, frequency: "monthly")
+      basic = create(:salary_component, salary_record: record, name: "Basic", kind: "earning", amount: 1_000, position: 1)
+
+      patch "/api/v1/salary_records/#{record.id}",
+            params: { salary_record: { salary_components_attributes: [ { id: basic.id, amount: 1_200 } ] } }.to_json,
+            headers: headers
+
+      expect(response).to have_http_status(:ok)
+      expect(json["salary_record"]["gross_earnings"]).to eq("1200.0")
+      expect(record.reload.amount).to eq(1_200)
+    end
+  end
+
   describe "GET /api/v1/departments and /countries" do
     before { create_list(:employee, 5) }
 
     it "returns distinct departments" do
-      get "/api/v1/departments"
+      get "/api/v1/departments", headers: headers
       expect(json["departments"]).to eq(Employee.distinct.pluck(:department).sort)
     end
 
     it "returns distinct countries" do
-      get "/api/v1/countries"
+      get "/api/v1/countries", headers: headers
       expect(json["countries"]).to eq(Employee.distinct.pluck(:country).sort)
     end
   end

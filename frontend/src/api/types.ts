@@ -1,3 +1,11 @@
+export interface SalaryComponent {
+  id: number
+  name: string
+  kind: 'earning' | 'deduction'
+  amount: string
+  position: number
+}
+
 export interface SalaryRecord {
   id: number
   amount: string
@@ -5,6 +13,10 @@ export interface SalaryRecord {
   frequency: 'annual' | 'monthly' | 'hourly'
   effective_date: string
   annualized_amount: string
+  gross_earnings: string
+  total_deductions: string
+  net_pay: string
+  salary_components?: SalaryComponent[]
 }
 
 export interface Employee {
@@ -37,11 +49,21 @@ export interface EmployeePayload {
   status?: 'active' | 'terminated'
 }
 
-export interface SalaryRecordPayload {
+export interface SalaryComponentPayload {
+  id?: number
+  name: string
+  kind: 'earning' | 'deduction'
   amount: string
+  position?: number
+  _destroy?: boolean
+}
+
+export interface SalaryRecordPayload {
+  amount?: string
   currency: string
   frequency: 'annual' | 'monthly' | 'hourly'
   effective_date: string
+  salary_components_attributes?: SalaryComponentPayload[]
 }
 
 export interface GroupStats {

@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import type { Employee, SalaryRecordPayload } from '../api/types'
 import { formatDate, formatMoney } from '../lib/format'
 import Spinner from '../components/Spinner'
+import SalaryBreakdown from '../components/SalaryBreakdown'
 
 export default function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -106,6 +107,13 @@ export default function EmployeeDetailPage() {
           </tbody>
         </table>
       </div>
+
+      {employee.current_salary && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h2>Current salary breakdown ({employee.currency})</h2>
+          <SalaryBreakdown record={employee.current_salary} onSaved={load} />
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         <div className="card">

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_22_120100) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_23_120100) do
   create_table "employees", force: :cascade do |t|
     t.string "country", null: false
     t.datetime "created_at", null: false
@@ -28,6 +28,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_22_120100) do
     t.index ["status"], name: "index_employees_on_status"
   end
 
+  create_table "salary_components", force: :cascade do |t|
+    t.decimal "amount", precision: 12, scale: 2, default: "0.0", null: false
+    t.datetime "created_at", null: false
+    t.string "kind", default: "earning", null: false
+    t.string "name", null: false
+    t.integer "position", default: 0, null: false
+    t.integer "salary_record_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["salary_record_id", "position"], name: "index_salary_components_on_salary_record_id_and_position"
+    t.index ["salary_record_id"], name: "index_salary_components_on_salary_record_id"
+  end
+
   create_table "salary_records", force: :cascade do |t|
     t.decimal "amount", precision: 12, scale: 2, null: false
     t.datetime "created_at", null: false
@@ -40,5 +52,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_22_120100) do
     t.index ["employee_id"], name: "index_salary_records_on_employee_id"
   end
 
+  create_table "users", force: :cascade do |t|
+    t.string "api_token", null: false
+    t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.string "password_digest", null: false
+    t.datetime "updated_at", null: false
+    t.index ["api_token"], name: "index_users_on_api_token", unique: true
+    t.index ["email"], name: "index_users_on_email", unique: true
+  end
+
+  add_foreign_key "salary_components", "salary_records"
   add_foreign_key "salary_records", "employees"
 end

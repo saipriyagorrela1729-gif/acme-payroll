@@ -42,11 +42,14 @@ module Seed
       employee_ids, employee_time = measure { insert_rows(Employee, employees) }
       salary_rows = salary_rows_for(employee_ids, employees)
       salary_ids, salary_time = measure { insert_rows(SalaryRecord, salary_rows) }
+      component_rows = component_rows_for(salary_ids, salary_rows)
+      component_ids, component_time = measure { insert_rows(SalaryComponent, component_rows) }
 
       {
         employee_count: employee_ids.size,
         salary_record_count: salary_ids.size,
-        timings: { employees: employee_time, salary_records: salary_time }
+        salary_component_count: component_ids.size,
+        timings: { employees: employee_time, salary_records: salary_time, salary_components: component_time }
       }
     end
 
@@ -113,6 +116,28 @@ module Seed
         created_at: Time.current,
         updated_at: Time.current
       }
+    end
+
+    # A realistic CTC breakdown per salary record: earnings sum to the gross
+    # (the record's amount), and deductions reduce it to net pay.
+    def component_rows_for(salary_ids, salary_rows)
+      salary_ids.zip(salary_rows).flat_map do |salary_id, row|
+        gross = row[:amount].to_d
+        basic = (gross * 0.45).round(2)
+        hra = (gross * 0.18).round(2)
+        special = (gross - basic - hra).round(2)
+        provident_fund = (basic * 0.12).round(2)
+        income_tax = (gross * 0.10).round(2)
+        now = Time.current
+
+        [
+          { salary_record_id: salary_id, name: "Basic", kind: "earning", amount: basic, position: 1, created_at: now, updated_at: now },
+          { salary_record_id: salary_id, name: "House Rent Allowance", kind: "earning", amount: hra, position: 2, created_at: now, updated_at: now },
+          { salary_record_id: salary_id, name: "Special Allowance", kind: "earning", amount: special, position: 3, created_at: now, updated_at: now },
+          { salary_record_id: salary_id, name: "Provident Fund", kind: "deduction", amount: provident_fund, position: 4, created_at: now, updated_at: now },
+          { salary_record_id: salary_id, name: "Income Tax", kind: "deduction", amount: income_tax, position: 5, created_at: now, updated_at: now }
+        ]
+      end
     end
 
     def annualized_amount(attrs, config)

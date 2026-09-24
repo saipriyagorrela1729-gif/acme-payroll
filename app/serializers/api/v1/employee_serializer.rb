@@ -12,12 +12,12 @@ module Api
           currency: employee.currency,
           hire_date: employee.hire_date,
           status: employee.status,
-          current_salary: SalaryRecordSerializer.call(employee.current_salary)
+          current_salary: SalaryRecordSerializer.call(employee.current_salary, include_components: include_history)
         }
 
         if include_history
           history = employee.salary_records.sort_by { |r| [ r.effective_date, r.id ] }.reverse
-          payload[:salary_history] = history.map { |r| SalaryRecordSerializer.call(r) }
+          payload[:salary_history] = history.map { |r| SalaryRecordSerializer.call(r, include_components: true) }
         end
 
         payload

@@ -28,19 +28,24 @@ accountant; not an employee self-service user.
   - Salary distribution (banded histogram)
   - Top earners
   - Headcount by status and by country
+- **CTC breakdown**: each salary record can carry an itemized breakdown of **earnings**
+  (e.g. Basic, House Rent Allowance, Special Allowance) and **deductions** (e.g. Provident
+  Fund, Income Tax). Gross = sum of earnings; **net pay = gross − deductions**. HR can
+  edit the breakdown (add/edit/remove components), and the record's total is recalculated.
+- **HR authentication**: a single HR user signs in with email + password; the API requires
+  a bearer token. No roles or self-service.
 - **CSV export**: one-click download of the current payroll for all employees.
-- **Seed data**: script that creates 10,000 realistic employees with salary history.
+- **Seed data**: script that creates 10,000 realistic employees with salary history and a
+  CTC breakdown.
 
 ### Out of scope (deliberately, with reasoning)
-- **Authentication / authorization** — the persona is a single HR Manager; adding login,
-  roles, and audit trails adds a full security surface with zero demo value. Treated as a
-  documented follow-up.
-- **Payroll processing** — payslips, deductions, taxes, provident fund, bank transfers.
-  We manage *salary records*; we do not run payroll. This is a separate product.
+- **Full payroll processing** — payslip generation, statutory filing, bank transfers, and
+  country-specific tax rules. We model a **CTC breakdown** (earnings/deductions and net
+  pay) but we do not *run payroll* or file taxes.
 - **Currency conversion / FX rates** — we report per currency rather than invent exchange
   rates. A live-FX integration is an external dependency we deliberately avoid in a demo.
-- **Net vs gross calculation** — only base/gross salary is stored; tax and take-home
-  computation is explicitly out of scope.
+- **Roles, multi-user permissions, audit logs, SSO** — a single HR login is enough for the
+  persona; richer access control is a documented follow-up.
 - **Notifications / emails, document uploads, org charts, employee self-service.**
 
 ## 4. Assumptions (unresolved in the brief — made explicit)
@@ -53,7 +58,7 @@ These are the choices we made where the brief was ambiguous. Each is easy to cha
 | Salary frequency | Store amount **+ frequency** per record; normalize to annual for comparison | Countries use different conventions; we keep ground truth and derive comparisons |
 | Multi-currency meaning | Two currencies only (INR, USD); **report per currency** | The org standardized on these two; no fake FX math |
 | Salary history | Effective-dated `salary_records`; current = latest record | Tracking raises/tenure is barely more work and answers "how we pay" far better |
-| Gross vs net | **Base/gross salary** | Deductions are out of scope |
+| Gross vs net | Store **gross** as the record total; a CTC breakdown derives **net** | We keep gross as the headline figure analytics use, and compute net from components |
 | "10,000 employees" | Seed with 10k rows; UI paginates | Confirms performance approach without caching layers |
 
 ## 5. Acceptance Criteria

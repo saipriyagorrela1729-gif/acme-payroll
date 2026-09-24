@@ -16,10 +16,10 @@
 
 require "simplecov"
 SimpleCov.start do
-  add_filter "/spec/"
-  add_filter "/config/"
-  add_filter "/db/"
-  add_filter "/frontend/"
+  skip "/spec/"
+  skip "/config/"
+  skip "/db/"
+  skip "/frontend/"
 end
 RSpec.configure do |config|
   # rspec-expectations config goes here. You can use an alternate

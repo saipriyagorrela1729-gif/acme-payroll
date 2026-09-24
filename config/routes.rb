@@ -6,6 +6,10 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       get "health", to: "health#show"
+
+      post "session", to: "sessions#create"
+      delete "session", to: "sessions#destroy"
+
       get "departments", to: "meta#departments"
       get "countries", to: "meta#countries"
       get "summary", to: "summary#show"
@@ -14,6 +18,8 @@ Rails.application.routes.draw do
         get :export, on: :collection
         resources :salary_records, only: [ :create ]
       end
+
+      resources :salary_records, only: [ :update ]
     end
   end
 

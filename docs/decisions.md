@@ -96,18 +96,19 @@ about reporting. 10k rows aggregated in SQL is milliseconds — no Ruby-side row
 
 ---
 
-## ADR-007 — No authentication
+## ADR-007 — Basic HR authentication (superseded)
 
-**Context:** Persona is a single HR Manager; demo submission.
+**Context:** Persona is a single HR Manager; the app manages real (synthetic) salary data.
 
-**Decision:** No auth. Single-user app, documented as a known limitation.
+**Decision (updated):** Add a **single HR login** — email + password (`has_secure_password`)
+issuing a bearer token that the API requires on every request. Roles, SSO, and audit logs
+remain out of scope.
 
-**Why:** Authentication (login, sessions, roles, CSRF) is a full security surface with zero
-demo value for this persona. A real deployment would gate it behind VPN/proxy or add
-`has_secure_password` + sessions.
+**Why:** A salary system with no gate at all is hard to defend; a single-user token login
+covers the persona with minimal surface. The token is rotated on logout.
 
-**Trade-off:** Anyone who reaches the URL can view/edit data. Acceptable for a demo with
-synthetic data.
+**Trade-off:** No roles/multi-user permissions. Tokens live in `localStorage` on the SPA,
+which is acceptable for a demo but would move to httpOnly cookies + CSRF in production.
 
 ---
 
@@ -186,3 +187,37 @@ app is a single file plus a process. For 10,000 rows the performance is comparab
 computed in Ruby), and production persistence requires a mounted disk on the host. In
 exchange, local setup and deployment are dramatically simpler. The SQL is written to be
 portable, so moving back to Postgres is a `database.yml` + Gemfile change.
+
+---
+
+## ADR-013 — CTC breakdown as components (earnings/deductions), gross stays the headline
+
+**Context:** HR wants to see and edit how a salary is broken down (Basic, HRA, allowances,
+PF, tax) and have the total reflect the edits.
+
+**Decision:** Add a `salary_components` table (`name`, `kind` = earning/deduction, `amount`,
+`position`) belonging to a `salary_record`. The record's `amount` remains the **gross**
+(sum of earning components, synced on save); `net_pay = gross − deductions`.
+
+**Why:** Keeping `amount` as gross means every existing analytic (payroll, median,
+distribution) keeps working unchanged, while the breakdown adds detail. A generic
+components table (rather than fixed columns) lets HR add any earning/deduction without a
+migration.
+
+**Trade-off:** Editing an earning changes the record's total (intended). Deductions don't
+affect analytics (which use gross) — documented and deliberate.
+
+---
+
+## ADR-014 — Token auth over session cookies for an API + SPA
+
+**Context:** The app is an API-only Rails app serving a React SPA from the same origin.
+
+**Decision:** Email/password login returns an opaque `api_token`; the SPA stores it and
+sends `Authorization: Bearer <token>`. Logout rotates the token.
+
+**Why:** API mode has no session middleware by default; token auth is stateless, trivial to
+test in request specs, and needs no CSRF plumbing.
+
+**Trade-off:** `localStorage` is vulnerable to XSS; a production build would prefer
+httpOnly cookies + CSRF or short-lived JWTs with refresh.

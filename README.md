@@ -9,6 +9,7 @@ technical assessment.
 ## Live demo
 
 - **Deployed:** https://acme-payroll.onrender.com/
+- **Sign in:** `hr@acme.example` / `password123`
 - **Demo video:** _(add link)_
 - Health check: https://acme-payroll.onrender.com/api/v1/health
 
@@ -21,9 +22,13 @@ technical assessment.
   status), paginate.
 - **Manage salaries** — record effective-dated salary changes; history is kept, and the
   current salary is always the latest record (nothing is overwritten).
+- **CTC breakdown** — each salary has itemized **earnings** (Basic, HRA, Special Allowance)
+  and **deductions** (Provident Fund, Income Tax). Gross = sum of earnings, **net = gross −
+  deductions**. HR can edit the breakdown and the total recalculates.
 - **Answer "how we pay"** — dashboard with headcount, payroll per currency, average &
   **median** by department and country, a salary distribution histogram, and top earners.
 - **Export** — one-click CSV of the full payroll.
+- **HR login** — email + password; the API is token-protected.
 
 ---
 
@@ -139,18 +144,23 @@ cd .. && bin/rails server
 ## API overview
 
 ```
+POST  /api/v1/session                        # login -> { token }
+DELETE /api/v1/session                       # logout (rotates the token)
 GET   /api/v1/employees?page=&per_page=&q=&department=&country=&status=
 POST  /api/v1/employees
 GET   /api/v1/employees/:id
 PATCH /api/v1/employees/:id
 DELETE /api/v1/employees/:id
 POST  /api/v1/employees/:id/salary_records
+PATCH /api/v1/salary_records/:id             # edit the CTC breakdown
 GET   /api/v1/employees/export.csv
 GET   /api/v1/departments
 GET   /api/v1/countries
 GET   /api/v1/summary
 GET   /api/v1/health
 ```
+
+All endpoints except `/health` and `POST /session` require `Authorization: Bearer <token>`.
 
 ## Deployment
 

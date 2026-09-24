@@ -25,6 +25,32 @@ a:hover { text-decoration: underline; }
 .nav a { color: #c4b5fd; padding: 4px 8px; border-radius: 6px; }
 .nav a:hover { color: #fff; text-decoration: none; background: rgba(255, 255, 255, 0.08); }
 .nav a.active { color: #fff; background: #6d28d9; }
+.nav-logout {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid #6d28d9;
+  color: #c4b5fd;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.nav-logout:hover { background: #6d28d9; color: #fff; }
+
+.login-wrap { display: flex; justify-content: center; align-items: center; min-height: 85vh; }
+.login-card { width: 340px; display: flex; flex-direction: column; gap: 12px; }
+.login-card h1 { margin: 0; font-size: 20px; }
+.login-card label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
+.login-card input { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; }
+
+.breakdown-actions { margin-bottom: 10px; }
+.breakdown input[type='text'], .breakdown input[type='number'] {
+  width: 100%; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;
+}
+.breakdown td input { min-width: 90px; }
+.breakdown tfoot td { font-weight: 600; border-top: 2px solid #e2e8f0; }
+.breakdown .net td { color: #166534; }
+.link-btn { background: none; border: none; color: #dc2626; cursor: pointer; font-size: 13px; }
 
 .container { max-width: 1100px; margin: 24px auto; padding: 0 24px; }
 
