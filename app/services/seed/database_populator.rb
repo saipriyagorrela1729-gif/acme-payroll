@@ -43,23 +43,27 @@ module Seed
       salary_rows = salary_rows_for(employee_ids, employees)
       salary_ids, salary_time = measure { insert_rows(SalaryRecord, salary_rows) }
       component_rows = component_rows_for(salary_ids, salary_rows)
-      component_ids, component_time = measure { insert_rows(SalaryComponent, component_rows) }
+      _, component_time = measure { insert_rows(SalaryComponent, component_rows, return_ids: false) }
 
       {
         employee_count: employee_ids.size,
         salary_record_count: salary_ids.size,
-        salary_component_count: component_ids.size,
+        salary_component_count: component_rows.size,
         timings: { employees: employee_time, salary_records: salary_time, salary_components: component_time }
       }
     end
 
     private
 
-    def insert_rows(model, rows)
+    def insert_rows(model, rows, return_ids: true)
       ids = []
       rows.each_slice(BATCH_SIZE) do |batch|
-        result = model.insert_all(batch, returning: %w[id])
-        ids.concat(result.map { |row| row["id"] })
+        if return_ids
+          result = model.insert_all(batch, returning: %w[id])
+          ids.concat(result.map { |row| row["id"] })
+        else
+          model.insert_all(batch)
+        end
       end
       ids
     end

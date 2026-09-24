@@ -63,9 +63,10 @@ salary per employee" window query without a full sort.
 
 | Step | Time |
 |---|---|
-| Insert 10,000 employees | ~2–3s |
-| Insert ~24,000 salary records | ~4–5s |
-| **Total** | **~7s** (target < 30s) ✓ |
+| Insert 10,000 employees | ~2s |
+| Insert ~24,000 salary records | ~4s |
+| Insert ~120,000 salary components (CTC breakdown) | ~18s |
+| **Total** | **~24s** (target < 30s) ✓ |
 
 ## 5. What we are deliberately NOT doing
 
