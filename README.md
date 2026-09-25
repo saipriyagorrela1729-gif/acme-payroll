@@ -86,7 +86,7 @@ and derived values are never stored. Rationale and trade-offs: `docs/architectur
 ### Performance
 
 Measured, not guessed (`docs/performance.md`): employee list single-digit ms; dashboard
-summary ~230 ms over 10k employees; seed 10k in ~7s; suite ~4s. Levers: indexes on every
+summary ~230 ms over 10k employees; seed 10k in ~11s; suite ~9s. Levers: indexes on every
 filter/sort column, `includes` to kill N+1, a single window query for current salaries,
 and `insert_all` bulk seeding.
 
@@ -120,7 +120,7 @@ and `insert_all` bulk seeding.
 bundle install
 bin/rails db:create db:migrate
 
-# 2. Seed 10,000 employees + salary history (~7s)
+# 2. Seed 10,000 employees + salary history + CTC breakdowns (~11s)
 bin/rails db:seed                  # or: bin/rails seed:benchmark
 
 # 3. Tests (67 examples, 99.6% line coverage, fast & deterministic)

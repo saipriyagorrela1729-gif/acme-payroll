@@ -129,7 +129,7 @@ Every feature follows this same 7-step loop. Get comfortable walking any of them
 
 ---
 
-## 6. The data model — two tables, and why that's a feature
+## 6. The data model — four small tables
 
 ### `employees`
 One row per person:
@@ -148,9 +148,20 @@ This lets us answer "what was the org paying in 2023?" and "what did this person
 before their raise?".
 
 **"Current salary"** is not stored — it's derived: the record with the latest
-`effective_date`. See `Employee#current_salary` and the `SalaryRecord.current` scope.
+`effective_date` (a window query in `PayrollStats`).
 
-### Why only two tables? (interview favorite)
+### `salary_components` — the CTC breakdown
+One row per component of a salary record: `salary_record_id, name, kind (earning |
+deduction), amount, position`. **Earnings sum to the record's gross**; **net pay = gross −
+deductions**. Seeded **per country** (India: Basic / HRA / Special Allowance + Provident
+Fund / Professional Tax / Income Tax; US: Base / Bonus + 401(k) / Federal / State Tax). See
+ADR-013.
+
+### `users` — the HR login
+`email, password_digest (bcrypt), api_token`. A single HR user; the API requires a bearer
+token. See ADR-014.
+
+### Why so few tables? (interview favorite)
 
 - **`department` is a plain string, not a table.** We have zero department metadata
   (no budget, no manager). An indexed string filters and groups instantly at 10k rows.
@@ -190,20 +201,21 @@ salary?" is "which currency do you mean?"
 
 ---
 
-## 8. The seed — how 10,000 employees appear in ~7 seconds
+## 8. The seed — how 10,000 employees appear in ~11 seconds
 
 `app/services/seed/database_populator.rb`. Open it — it's ~150 lines and worth reading.
 
 1. **Deterministic** — `Random.new(12_345)` is the seed for all randomness (including
    Faker). Run it twice, same data. That's why our specs can assert exact numbers and why
    your demo is reproducible.
-2. **Realistic** — a `COUNTRY_CONFIG` hash maps each country to its currency, its
-   pay convention, and a sensible local-currency salary range. So India gets `INR` in
-   lakhs, Japan gets `JPY` in millions, US gets `USD` in tens of thousands.
+2. **Realistic** — a `COUNTRY_CONFIG` hash maps each country to its currency and pay
+   convention (India `INR` monthly; US `USD` annual) with sensible local-currency ranges,
+   and `COMPONENT_CONFIG` gives each a **country-appropriate CTC breakdown**.
 3. **Salary history** — each employee gets 1–3 records; the latest record is the current
    salary and earlier ones are ~65%→85%→100% of it. History always grows.
-4. **Fast** — uses `insert_all` (bulk insert) in batches of 1,000, not 10,000
-   individual `create!` calls. Measured: **1.2s for employees + 2.5s for salary records**.
+4. **Fast** — uses `insert_all` (bulk insert) in batches of 1,000. Measured: **~2s for
+   employees, ~3s for salary records, ~6s for components** (~11s total). Only each
+   employee's *current* record gets a breakdown, keeping the seed fast.
 5. **A safety guard** — it refuses to run if `employees` already has rows. (We discovered
    Rails' `insert_all` *silently skips* rows that violate a unique constraint instead of
    erroring — so a second seed would have quietly corrupted history. The guard prevents it.)
@@ -215,15 +227,19 @@ Run it with `bin/rails db:seed` or watch timings with `bin/rails seed:benchmark`
 ## 9. The API — the full contract
 
 All endpoints live under `/api/v1` (versioned, so future breaking changes don't affect
-existing clients).
+existing clients). Every endpoint except `/health` and `POST /session` requires
+`Authorization: Bearer <token>`.
 
 ```
+POST  /api/v1/session                       # login -> { token }
+DELETE /api/v1/session                       # logout (rotates the token)
 GET   /api/v1/employees?page=&per_page=&q=&department=&country=&status=
 POST  /api/v1/employees
 GET   /api/v1/employees/:id
 PATCH /api/v1/employees/:id
 DELETE /api/v1/employees/:id
-POST  /api/v1/employees/:id/salary_records
+POST  /api/v1/employees/:id/salary_records   # add a revision (carries the breakdown)
+PATCH /api/v1/salary_records/:id             # edit the CTC breakdown
 GET   /api/v1/employees/export.csv
 GET   /api/v1/departments
 GET   /api/v1/countries
@@ -253,7 +269,10 @@ GET   /api/v1/health
   "status": "active",
   "hire_date": "2019-04-01",
   "current_salary": { "amount": "120000.0", "currency": "USD",
-                      "frequency": "annual", "annualized_amount": "120000.0" }
+                      "frequency": "annual", "annualized_amount": "120000.0",
+                      "gross_earnings": "120000.0", "total_deductions": "26400.0",
+                      "net_pay": "93600.0",
+                      "salary_components": [ { "name": "Base", "kind": "earning", "amount": "..." } ] }
 }
 ```
 The detail endpoint adds a `salary_history` array (newest first).
@@ -308,12 +327,14 @@ from `DISTINCT ON (employee_id)`, but `ROW_NUMBER` is portable to SQLite — see
 
 ## 11. The frontend — React, deliberately kept simple
 
-The whole SPA is 4 screens + a nav bar:
+The whole SPA is a login screen + a nav bar + these views:
 
+- **`/login`** — HR sign in (stores the bearer token).
 - **`/` Dashboard** — stat cards + charts. A currency selector drives all the
   per-currency charts (because of Rule 2 above).
 - **`/employees`** — searchable/filterable/paginated table + CSV download.
-- **`/employees/:id`** — profile + salary history + "record a salary change" form.
+- **`/employees/:id`** — profile + editable **CTC breakdown** + salary history +
+  "add a salary revision" form.
 - **`/employees/new` and `/employees/:id/edit`** — create/edit form.
 
 Architecture choices to defend:
@@ -322,30 +343,34 @@ Architecture choices to defend:
   call it and hold local state.
 - **Types mirror the API** (`src/api/types.ts`). If the backend changes a field, the
   frontend won't compile until it's updated — the contract is enforced by TypeScript.
-- **Recharts is lazy-loaded** — the dashboard chunk (~390 kB) is fetched only when you
-  open it, keeping the initial bundle at ~84 kB gzipped.
+- **Recharts is lazy-loaded** — the dashboard chunk is fetched only when you open it,
+  keeping the initial bundle small (~87 kB gzipped).
+- **Auth is centralized** — the token is attached to every request; a `401` clears it and
+  redirects to `/login`. The CSV download fetches with the token (a plain link wouldn't
+  send it).
 
-### "Record a salary change" — the money feature
+### The CTC breakdown — the money feature
 
-On the employee detail page you type an amount and hit Save. That `POST`s a new
-`salary_record`. The old records are untouched — so the detail page now shows **two**
-history rows, and the new one becomes the current salary. The dashboard's next load
-reflects it. This is salary management done right: nothing is ever overwritten.
+On the employee detail page, HR sees how the salary decomposes (earnings like Base/HRA,
+deductions like PF/tax) with **gross / deductions / net**, and can **edit** it — the total
+recalculates live and persists. Recording a **salary revision** creates a new
+effective-dated record and **carries the breakdown over (scaled)**, so history grows while
+the structure stays intact.
 
 ---
 
-## 12. Testing — 67 specs, ~2 seconds
+## 12. Testing — 89 specs, ~9 seconds
 
 ```
 spec/
-├── models/    validations + current_salary + annualized_amount
+├── models/    validations + current_salary + annualized_amount + CTC breakdown
 ├── services/  PayrollStats math with EXACT expected numbers; seed behavior
-├── requests/  every endpoint: success + error + pagination + filters + N+1 guard
-└── system/    one Capybara test through the real SPA + API + DB
+├── requests/  every endpoint: success + error + auth + pagination + filters + N+1 guard
+└── system/    one Capybara test through the real SPA + login + API + DB
 ```
 
 The rules we followed (all stated in the assessment):
-- **Fast** — the whole suite runs in ~2 seconds.
+- **Fast** — the whole suite runs in ~9 seconds (including coverage reporting).
 - **Deterministic** — no network, no huge seeds in tests; tiny fixtures with known values.
 - **Meaningful** — the `PayrollStats` spec asserts *exact numbers* (e.g. USD payroll =
   `160_000.0`), so a wrong formula fails loudly.
@@ -367,16 +392,16 @@ Documented in `docs/performance.md`:
 |---|---|---|
 | Employee list (search/filter/paginate) | < 100 ms | single-digit ms |
 | Dashboard summary over 10k employees | < 300 ms | **~230 ms** |
-| Seed 10k employees + 24k salary records | < 30 s | **~7 s** |
-| Full test suite | < 60 s | **~4 s** |
-| CSV export of all 10k employees | — | ~590 kB |
+| Seed 10k employees + 24k salary records + 55k components | < 30 s | **~11 s** |
+| Full test suite | < 60 s | **~9 s** |
+| CSV export of all 10k employees | — | ~700 kB |
 
 The levers: **indexes** on every filter/sort column; **`includes`** to avoid N+1;
 a **single window query** for current salaries; **`insert_all`** bulk seeding;
 **lazy-loaded** charts on the frontend.
 
 What we deliberately did **not** add (and can defend): no Redis/memcached (230 ms doesn't
-need caching), no background jobs (the seed is ~7 s), no Elasticsearch (`LIKE` is plenty
+need caching), no background jobs (the seed is ~11 s), no Elasticsearch (`LIKE` is plenty
 at 10k rows).
 
 ---
@@ -394,11 +419,14 @@ The file that will get you the most interview credit. Each entry is
 | 004 | No FX conversion; report per currency | Fake rates are confidently wrong; no external dep |
 | 005 | Store amount + frequency; derive annualized | Ground truth in; comparisons derived at read time |
 | 006 | Stats in a service object, SQL-only | Testable, one place, no row loading |
-| 007 | No authentication | Single HR-manager persona; documented future work |
+| 007 | Basic HR login (token) | Single HR persona; a salary tool needs a gate |
 | 008 | React kept minimal (no Redux) | No client-side domain worth a global store |
 | 009 | Derived values never stored | No stale aggregates; reports provably live |
 | 010 | One deploy unit (Rails serves SPA) | No CORS, one health check |
 | 011 | Pin `json` gem below 3.0 | Spec caught a gem incompatibility that broke all JSON |
+| 012 | SQLite over Postgres | Zero-setup; portable SQL; free hosting |
+| 013 | CTC breakdown as components | Gross stays the headline; net = gross − deductions |
+| 014 | Token auth over session cookies | API mode has no sessions; stateless and testable |
 
 ---
 
@@ -406,10 +434,11 @@ The file that will get you the most interview credit. Each entry is
 
 From `docs/requirements.md` — you must be able to say these without hesitation:
 
-- **Auth / roles** — the persona is a single HR Manager; auth is a full security surface
-  with zero demo value. Documented as the first thing we'd add for real.
-- **Payroll processing** (payslips, taxes, provident fund, bank transfers) — that's a
-  *different product*. We manage *salary records*, we don't run payroll.
+- **Full payroll processing** (payslip generation, statutory filing, bank transfers,
+  country-specific tax rules) — we model a **CTC breakdown** (earnings/deductions and net
+  pay) but we do not *run payroll* or file taxes. That's a different product.
+- **Roles / multi-user permissions / SSO / audit logs** — a single HR login covers the
+  persona; richer access control is documented as future work.
 - **Currency conversion** — ADR-004.
 - **Notifications, document uploads, org charts, employee self-service.**
 
@@ -419,37 +448,36 @@ The pattern: **every exclusion has a reason**, and nothing is excluded by accide
 
 ## 16. Deployment — how it goes live
 
-- `render.yaml` describes the whole thing: a Ruby web service with a mounted disk holding
-  the SQLite file.
-- Build step runs `npm ci && npm run build` in `frontend/` (compiling the SPA into Rails'
-  `public/`), then `bundle install`.
-- Start command: `bin/rails server`. Health check: `/api/v1/health`.
-- **One manual step** after deploy: run `bin/rails db:seed` once in the Render shell.
-- Production config comes from ENV: `SECRET_KEY_BASE` (Render generates it) and
-  `DATABASE_PATH`. There is no credentials file — this API app uses no cookies or sessions.
-- The production config reads the database path from the `DATABASE_PATH` env var (pointing
-  at the mounted disk), so the SQLite file survives deploys.
+- A **Dockerfile** builds the React SPA, then the Rails image (SQLite). `docker-compose.yml`
+  adds Caddy for TLS; `render.yaml` deploys the image on Render.
+- **Container command:** `bin/rails db:prepare && bin/rails server` — on a fresh disk it
+  creates **and seeds** the DB (~11s), then serves; later boots only migrate.
+- Production config is ENV-based: `SECRET_KEY_BASE` and (optionally) `DATABASE_PATH`.
+  No credentials file — this app uses no cookies/sessions.
+- **Live:** https://acme-payroll.onrender.com/ (free tier: ephemeral disk + sleeps when idle,
+  so a cold start re-seeds; `docs/deploy-oracle.md` is the free **persistent** option).
 
-The local production smoke test already passed: booting with `RAILS_ENV=production` against
-a production database, seeding 10k employees, and hitting `/api/v1/health`, `/`, and
-`/api/v1/summary` all returned 200.
+The Docker image was built and run in production locally (health, SPA and summary all 200),
+and the deployed app passed a 29-check end-to-end smoke test.
 
 ---
 
 ## 17. The elevator pitch (30 seconds)
 
 > "We replaced a spreadsheet-based salary system with a web app for an HR manager. Rails 8
-> serves both a JSON API and a React SPA from one deployable unit on Render, backed by
-> SQLite. The data model is deliberately just two tables — employees and an effective-dated
-> salary history — so current salary is always the latest record and nothing is ever
-> overwritten. Every report on the dashboard is computed over annualized, per-currency
+> serves both a JSON API and a React SPA from one deployable unit, backed by SQLite. The
+> data model is small and deliberate: employees, an effective-dated salary history, a CTC
+> breakdown of each salary, and an HR login. Current salary is always the latest record and
+> nothing is ever overwritten; each salary decomposes into earnings and deductions with a
+> computed net pay. Every report on the dashboard is computed over annualized, per-currency
 > (INR and USD) amounts: payroll totals, average and median by department and country, a
 > salary distribution histogram, and top earners per currency. It's seeded deterministically
-> with 10,000 realistic employees in about seven seconds, the full dashboard responds in
-> about 230 milliseconds, and 67 fast, deterministic specs cover the models, the stats math,
-> every endpoint, and one end-to-end system test. The requirements document, architecture
-> diagram, and an ADR-style decision log explain every trade-off, including what we
-> deliberately left out: authentication, payroll processing, and currency conversion."
+> with 10,000 realistic employees (and country-appropriate breakdowns) in about eleven
+> seconds, the full dashboard responds in about 230 milliseconds, and 89 fast, deterministic
+> specs cover the models, the stats math, every endpoint, and an end-to-end system test. The
+> requirements document, architecture diagram, and an ADR-style decision log explain every
+> trade-off, including what we deliberately left out: full payroll processing, roles, and
+> currency conversion."
 
 Read that out loud until it's yours. Then read the files it references — every claim
 above is backed by real code in this repo.
