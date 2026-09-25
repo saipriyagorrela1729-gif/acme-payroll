@@ -24,6 +24,26 @@ module Seed
       "US" => { currency: "USD", frequency: "annual", min: 50_000, max: 200_000 }
     }.freeze
 
+    # Country-appropriate CTC breakdown templates. Earnings must sum to the gross
+    # (the last earning uses :remainder). Deductions reduce it to net pay.
+    COMPONENT_CONFIG = {
+      "INR" => [
+        { name: "Basic", kind: "earning", percent: 0.45 },
+        { name: "House Rent Allowance", kind: "earning", percent: 0.18 },
+        { name: "Special Allowance", kind: "earning", remainder: true },
+        { name: "Provident Fund", kind: "deduction", percent_of_basic: 0.12 },
+        { name: "Professional Tax", kind: "deduction", flat: 200 },
+        { name: "Income Tax", kind: "deduction", percent: 0.10 }
+      ],
+      "USD" => [
+        { name: "Base", kind: "earning", percent: 0.85 },
+        { name: "Bonus", kind: "earning", remainder: true },
+        { name: "401(k)", kind: "deduction", percent: 0.05 },
+        { name: "Federal Income Tax", kind: "deduction", percent: 0.12 },
+        { name: "State Tax", kind: "deduction", percent: 0.05 }
+      ]
+    }.freeze
+
     BATCH_SIZE = 1_000
 
     attr_reader :rng, :country_config
@@ -122,26 +142,61 @@ module Seed
       }
     end
 
-    # A realistic CTC breakdown per salary record: earnings sum to the gross
-    # (the record's amount), and deductions reduce it to net pay.
+    # A country-appropriate CTC breakdown per salary record: earning components
+    # sum to the gross (the record's amount), deductions reduce it to net pay.
     def component_rows_for(salary_ids, salary_rows)
+      now = Time.current
       salary_ids.zip(salary_rows).flat_map do |salary_id, row|
-        gross = row[:amount].to_d
-        basic = (gross * 0.45).round(2)
-        hra = (gross * 0.18).round(2)
-        special = (gross - basic - hra).round(2)
-        provident_fund = (basic * 0.12).round(2)
-        income_tax = (gross * 0.10).round(2)
-        now = Time.current
+        templates = COMPONENT_CONFIG.fetch(row[:currency])
+        amounts = component_amounts(row[:amount].to_d, templates)
 
-        [
-          { salary_record_id: salary_id, name: "Basic", kind: "earning", amount: basic, position: 1, created_at: now, updated_at: now },
-          { salary_record_id: salary_id, name: "House Rent Allowance", kind: "earning", amount: hra, position: 2, created_at: now, updated_at: now },
-          { salary_record_id: salary_id, name: "Special Allowance", kind: "earning", amount: special, position: 3, created_at: now, updated_at: now },
-          { salary_record_id: salary_id, name: "Provident Fund", kind: "deduction", amount: provident_fund, position: 4, created_at: now, updated_at: now },
-          { salary_record_id: salary_id, name: "Income Tax", kind: "deduction", amount: income_tax, position: 5, created_at: now, updated_at: now }
-        ]
+        templates.each_with_index.map do |template, index|
+          {
+            salary_record_id: salary_id,
+            name: template[:name],
+            kind: template[:kind],
+            amount: amounts[index],
+            position: index + 1,
+            created_at: now,
+            updated_at: now
+          }
+        end
       end
+    end
+
+    # Resolves each template to an amount. The `remainder` earning absorbs
+    # rounding so the earning components always sum exactly to the gross.
+    def component_amounts(gross, templates)
+      resolved = {}
+      basic = 0.to_d
+
+      templates.each_with_index do |template, index|
+        next if template[:remainder]
+
+        amount =
+          if template[:percent_of_basic]
+            (basic * template[:percent_of_basic]).round(2)
+          elsif template[:percent]
+            (gross * template[:percent]).round(2)
+          elsif template[:flat]
+            template[:flat].to_d
+          else
+            0.to_d
+          end
+
+        basic = amount if template[:name] == "Basic"
+        resolved[index] = amount
+      end
+
+      remainder_index = templates.index { |template| template[:remainder] }
+      if remainder_index
+        earning_sum = templates.each_with_index
+                              .select { |template, index| template[:kind] == "earning" && index != remainder_index }
+                              .sum { |_template, index| resolved[index] }
+        resolved[remainder_index] = (gross - earning_sum).round(2)
+      end
+
+      templates.each_index.map { |index| resolved[index] }
     end
 
     def annualized_amount(attrs, config)

@@ -22,9 +22,10 @@ technical assessment.
   status), paginate.
 - **Manage salaries** — record effective-dated salary changes; history is kept, and the
   current salary is always the latest record (nothing is overwritten).
-- **CTC breakdown** — each salary has itemized **earnings** (Basic, HRA, Special Allowance)
-  and **deductions** (Provident Fund, Income Tax). Gross = sum of earnings, **net = gross −
-  deductions**. HR can edit the breakdown and the total recalculates.
+- **CTC breakdown** — itemized **earnings** and **deductions**, seeded **per country**
+  (India: Basic / HRA / Special Allowance + Provident Fund / Professional Tax / Income Tax;
+  US: Base / Bonus + 401(k) / Federal Income Tax / State Tax). Gross = sum of earnings,
+  **net = gross − deductions**. HR can edit the breakdown and the total recalculates.
 - **Answer "how we pay"** — dashboard with headcount, payroll per currency, average &
   **median** by department and country, a salary distribution histogram, and top earners.
 - **Export** — one-click CSV of the full payroll.

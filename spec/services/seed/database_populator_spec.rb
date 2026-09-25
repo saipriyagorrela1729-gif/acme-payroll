@@ -25,15 +25,24 @@ RSpec.describe Seed::DatabasePopulator, type: :service do
       end
     end
 
-    it "creates a CTC breakdown for every salary record whose earnings sum to the gross" do
-      result = Seed::DatabasePopulator.new(employee_count: 20).call
+    it "creates a country-appropriate CTC breakdown whose earnings sum to the gross" do
+      Seed::DatabasePopulator.new(employee_count: 100).call
 
-      expect(result[:salary_component_count]).to eq(result[:salary_record_count] * 5)
+      expect(SalaryComponent.count).to be > SalaryRecord.count
 
-      record = SalaryRecord.first
-      expect(record.salary_components.map(&:name)).to include("Basic", "House Rent Allowance", "Provident Fund")
-      expect(record.gross_earnings).to eq(record.amount)
-      expect(record.net_pay).to be < record.gross_earnings
+      inr_record = SalaryRecord.where(currency: "INR").first
+      usd_record = SalaryRecord.where(currency: "USD").first
+
+      expect(inr_record.salary_components.map(&:name)).to include("Basic", "House Rent Allowance", "Provident Fund")
+      expect(usd_record.salary_components.map(&:name)).to include("Base", "401(k)", "Federal Income Tax")
+
+      # India-only components must never leak onto US records
+      expect(usd_record.salary_components.map(&:name)).not_to include("House Rent Allowance", "Provident Fund")
+
+      [ inr_record, usd_record ].each do |record|
+        expect(record.gross_earnings).to eq(record.amount)
+        expect(record.net_pay).to be < record.gross_earnings
+      end
     end
 
     it "is deterministic for a fixed seed" do

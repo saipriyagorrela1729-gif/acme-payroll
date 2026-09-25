@@ -202,7 +202,9 @@ PF, tax) and have the total reflect the edits.
 **Why:** Keeping `amount` as gross means every existing analytic (payroll, median,
 distribution) keeps working unchanged, while the breakdown adds detail. A generic
 components table (rather than fixed columns) lets HR add any earning/deduction without a
-migration.
+migration. Components are **country-appropriate** so the data is domain-consistent — India
+uses Basic / HRA / Special Allowance + Provident Fund / Professional Tax / Income Tax; the
+US uses Base / Bonus + 401(k) / Federal Income Tax / State Tax.
 
 **Trade-off:** Editing an earning changes the record's total (intended). Deductions don't
 affect analytics (which use gross) — documented and deliberate.
