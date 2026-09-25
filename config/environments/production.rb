@@ -12,8 +12,10 @@ Rails.application.configure do
   # Full error reports are disabled.
   config.consider_all_requests_local = false
 
-  # Cache assets for far-future expiry since they are all digest stamped.
-  config.public_file_server.headers = { "cache-control" => "public, max-age=#{1.year.to_i}" }
+  # The SPA shell (public/index.html) must NOT be cached long: after a redeploy the
+  # browser has to fetch the fresh HTML that points at the new hashed bundle. Hashed
+  # assets are cache-busted by filename, so `no-cache` (revalidate) is safe for both.
+  config.public_file_server.headers = { "cache-control" => "no-cache" }
 
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
