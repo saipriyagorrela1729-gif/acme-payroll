@@ -27,6 +27,32 @@ export function isAuthenticated(): boolean {
   return getToken() !== null
 }
 
+// The export is a file download, so it can't go through the JSON `request`
+// helper. Fetch it with the auth header, then trigger a browser download.
+export async function downloadPayrollCsv(): Promise<void> {
+  const token = getToken()
+  const res = await fetch(`${API}/employees/export.csv`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+
+  if (res.status === 401) {
+    clearToken()
+    window.location.assign('/login')
+    return
+  }
+  if (!res.ok) throw new Error('Export failed')
+
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `acme_payroll_${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken()
   const res = await fetch(`${API}${path}`, {

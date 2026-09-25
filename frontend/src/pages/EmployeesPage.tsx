@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../api/client'
+import { api, downloadPayrollCsv } from '../api/client'
 import type { Employee, EmployeeListResponse } from '../api/types'
 import { formatMoney } from '../lib/format'
 import Spinner from '../components/Spinner'
@@ -47,14 +47,16 @@ export default function EmployeesPage() {
     setSearch(searchInput.trim())
   }
 
+  const exportCsv = () => downloadPayrollCsv().catch(() => setError('Export failed'))
+
   return (
     <>
       <div className="page-header">
         <h1>Employees</h1>
         <div>
-          <a className="btn secondary" href="/api/v1/employees/export.csv">
+          <button className="btn secondary" onClick={exportCsv}>
             Download CSV
-          </a>{' '}
+          </button>{' '}
           <Link className="btn" to="/employees/new">
             + New employee
           </Link>
