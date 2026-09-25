@@ -64,9 +64,13 @@ salary per employee" window query without a full sort.
 | Step | Time |
 |---|---|
 | Insert 10,000 employees | ~2s |
-| Insert ~24,000 salary records | ~4s |
-| Insert ~120,000 salary components (CTC breakdown) | ~18s |
-| **Total** | **~24s** (target < 30s) ✓ |
+| Insert ~24,000 salary records | ~3s |
+| Insert ~55,000 salary components (current record per employee) | ~6s |
+| **Total** | **~11s** (target < 30s) ✓ |
+
+> Only each employee's **current** salary carries a CTC breakdown (that's what the UI
+> shows); history is displayed as amounts. This keeps the seed fast enough to run before
+> the server binds, so the deployed app has data the moment it serves.
 
 ## 5. What we are deliberately NOT doing
 

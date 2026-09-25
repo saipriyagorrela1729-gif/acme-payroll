@@ -25,13 +25,11 @@ RSpec.describe Seed::DatabasePopulator, type: :service do
       end
     end
 
-    it "creates a country-appropriate CTC breakdown whose earnings sum to the gross" do
+    it "creates a country-appropriate CTC breakdown on each employee's current salary" do
       Seed::DatabasePopulator.new(employee_count: 100).call
 
-      expect(SalaryComponent.count).to be > SalaryRecord.count
-
-      inr_record = SalaryRecord.where(currency: "INR").first
-      usd_record = SalaryRecord.where(currency: "USD").first
+      inr_record = Employee.where(currency: "INR").first.current_salary
+      usd_record = Employee.where(currency: "USD").first.current_salary
 
       expect(inr_record.salary_components.map(&:name)).to include("Basic", "House Rent Allowance", "Provident Fund")
       expect(usd_record.salary_components.map(&:name)).to include("Base", "401(k)", "Federal Income Tax")

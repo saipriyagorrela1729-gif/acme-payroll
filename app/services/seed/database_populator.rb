@@ -144,9 +144,17 @@ module Seed
 
     # A country-appropriate CTC breakdown per salary record: earning components
     # sum to the gross (the record's amount), deductions reduce it to net pay.
+    # Only the CURRENT (latest) record per employee gets a breakdown — that is
+    # what the UI shows; history is displayed as amounts. This keeps the seed
+    # fast enough to run before the server binds.
     def component_rows_for(salary_ids, salary_rows)
       now = Time.current
-      salary_ids.zip(salary_rows).flat_map do |salary_id, row|
+      current_pairs = salary_ids.zip(salary_rows)
+                               .group_by { |_id, row| row[:employee_id] }
+                               .values
+                               .map(&:last)
+
+      current_pairs.flat_map do |salary_id, row|
         templates = COMPONENT_CONFIG.fetch(row[:currency])
         amounts = component_amounts(row[:amount].to_d, templates)
 
