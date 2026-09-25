@@ -207,7 +207,9 @@ uses Basic / HRA / Special Allowance + Provident Fund / Professional Tax / Incom
 US uses Base / Bonus + 401(k) / Federal Income Tax / State Tax.
 
 **Trade-off:** Editing an earning changes the record's total (intended). Deductions don't
-affect analytics (which use gross) — documented and deliberate.
+affect analytics (which use gross) — documented and deliberate. Recording a **new salary
+revision** carries the previous breakdown over (scaled to the new gross) so the structure
+is never silently lost.
 
 ---
 

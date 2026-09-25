@@ -138,7 +138,11 @@ export default function EmployeeDetailPage() {
         </div>
 
         <div className="card">
-          <h2>Record a salary change</h2>
+          <h2>Add a salary revision</h2>
+          <p className="muted">
+            Creates a new effective-dated record (e.g. a raise) and carries the current
+            breakdown over, scaled to the new amount. The previous record stays in history.
+          </p>
           {formError && <div className="error-banner">{formError}</div>}
           <form className="form-grid" onSubmit={addSalary}>
             <label>

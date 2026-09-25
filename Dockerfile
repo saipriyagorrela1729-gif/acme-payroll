@@ -27,5 +27,6 @@ COPY . .
 COPY --from=frontend /app/public ./public
 
 EXPOSE 3000
-# db:prepare creates/migrates the SQLite database on the mounted volume at boot.
-CMD ["sh", "-c", "bin/rails db:prepare && bin/rails server -b 0.0.0.0"]
+# Create/migrate the SQLite schema (fast), bind the server so the platform's
+# health check passes promptly, then seed the demo data in the background.
+CMD ["sh", "-c", "bin/rails db:create db:migrate && (bin/rails db:seed >/tmp/seed.log 2>&1 &) && bin/rails server -b 0.0.0.0"]

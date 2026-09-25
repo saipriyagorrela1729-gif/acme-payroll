@@ -253,6 +253,23 @@ RSpec.describe "Api::V1::Employees", type: :request do
       expect(json["salary_record"]["net_pay"]).to eq("900.0")
     end
 
+    it "carries the previous breakdown into a new revision, scaled to the new gross" do
+      employee = create(:employee)
+      previous = create(:salary_record, employee: employee, amount: 1_000, frequency: "monthly", effective_date: Date.new(2024, 1, 1))
+      create(:salary_component, salary_record: previous, name: "Basic", kind: "earning", amount: 600)
+      create(:salary_component, salary_record: previous, name: "HRA", kind: "earning", amount: 400)
+      create(:salary_component, salary_record: previous, name: "Provident Fund", kind: "deduction", amount: 100)
+
+      post "/api/v1/employees/#{employee.id}/salary_records",
+           params: { salary_record: { amount: 2_000, currency: "INR", frequency: "monthly", effective_date: "2025-01-01" } }.to_json,
+           headers: headers
+
+      expect(response).to have_http_status(:created)
+      expect(json["salary_record"]["salary_components"].size).to eq(3)
+      expect(json["salary_record"]["gross_earnings"]).to eq("2000.0")
+      expect(json["salary_record"]["net_pay"]).to eq("1800.0")
+    end
+
     it "edits a breakdown and recalculates the total salary" do
       employee = create(:employee)
       record = create(:salary_record, employee: employee, amount: 1_000, frequency: "monthly")
