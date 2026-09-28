@@ -12,7 +12,7 @@ Every expectation in the brief, and exactly where this repo satisfies it.
 | Relational database | SQLite (portable SQL; see ADR-012) |
 | Seed script with 10,000 employees | `app/services/seed/database_populator.rb`, `db/seeds.rb`, `bin/rails seed:benchmark` |
 | Fully functional deployed software | https://acme-payroll.onrender.com/ (also `docs/deploy-oracle.md`) |
-| Video demo | _(add link — script in `docs/demo-script.md`)_ |
+| Video demo | [Watch the walkthrough](https://drive.google.com/file/d/1NX_WS39KX-R6OukW_lc3M95PkX5TrWHk/view?usp=sharing) (script in `docs/demo-script.md`) |
 
 ## Features (product thinking)
 

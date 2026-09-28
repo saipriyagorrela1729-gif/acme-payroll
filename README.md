@@ -10,7 +10,7 @@ technical assessment.
 
 - **Deployed:** https://acme-payroll.onrender.com/
 - **Sign in:** `hr@acme.example` / `password123`
-- **Demo video:** _(add link)_
+- **Demo video:** [Watch the walkthrough](https://drive.google.com/file/d/1NX_WS39KX-R6OukW_lc3M95PkX5TrWHk/view?usp=sharing)
 - Health check: https://acme-payroll.onrender.com/api/v1/health
 
 > On the free tier the app sleeps when idle, so the first request after a quiet period
